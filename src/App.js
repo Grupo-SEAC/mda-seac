@@ -62,34 +62,34 @@ const css = `
 
   /* Contenedor principal centrado */
   .mda-wrapper {
-    max-width: 720px;
-    margin: 0 auto;
-    padding: 32px 20px 60px;
+    max-width: 100%;
+    margin: 0;
+    padding: 16px 12px 40px;
   }
 
   .mda-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 32px;
+    margin-bottom: 16px;
   }
 
   /* Badge superior — estilo SEAC */
   .mda-badge {
     display: inline-block;
-    font-size: 10px;
+    font-size: 8px;
     font-weight: 700;
     letter-spacing: 0.15em;
     text-transform: uppercase;
     color: var(--accent);
     background: var(--accent-bg);
-    padding: 4px 12px;
+    padding: 3px 8px;
     border-radius: 20px;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
   }
 
   .mda-title {
-    font-size: 24px;
+    font-size: 18px;
     font-weight: 700;
     color: var(--ink);
     letter-spacing: -0.02em;
@@ -106,9 +106,9 @@ const css = `
     background: none;
     border: 1px solid var(--line);
     border-radius: var(--radius);
-    padding: 8px 14px;
+    padding: 5px 10px;
     font-family: 'Poppins', sans-serif;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 500;
     color: var(--ink-soft);
     cursor: pointer;
@@ -121,42 +121,42 @@ const css = `
     background: #fff;
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
-    padding: 24px;
-    margin-bottom: 16px;
+    padding: 12px;
+    margin-bottom: 10px;
   }
   html.dark .mda-card { background: var(--paper-dark); }
 
   /* Etiqueta de sección — uppercase con línea inferior */
   .section-label {
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 600;
     letter-spacing: 0.15em;
     text-transform: uppercase;
     color: var(--ink-muted);
-    margin-bottom: 16px;
-    padding-bottom: 10px;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
     border-bottom: 1px solid var(--line);
   }
 
   /* Campo de formulario — label + input/select/textarea */
-  .field { margin-bottom: 18px; }
+  .field { margin-bottom: 10px; }
   .field label {
     display: block;
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--ink-muted);
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
   .field input,
   .field select,
   .field textarea {
     display: block;
     width: 100%;
-    padding: 10px 14px;
+    padding: 7px 10px;
     font-family: 'Poppins', sans-serif;
-    font-size: 13px;
+    font-size: 12px;
     color: var(--ink);
     background: var(--paper);
     border: 1px solid var(--line);
@@ -178,13 +178,13 @@ const css = `
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
   }
-  .field textarea { resize: vertical; min-height: 80px; }
+  .field textarea { resize: vertical; min-height: 60px; }
 
   /* Grid de 2 columnas para campos relacionados */
   .fields-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 0 16px;
+    gap: 0 10px;
   }
 
   /* ── Autocomplete ── */
@@ -222,18 +222,18 @@ const css = `
     background: var(--accent-bg);
     border: 1px solid var(--line);
     border-radius: var(--radius);
-    padding: 14px 16px;
-    margin-bottom: 18px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
-    gap: 10px;
+    gap: 8px;
   }
   .dato-item label {
-    font-size: 10px; font-weight: 700;
+    font-size: 8px; font-weight: 700;
     letter-spacing: 0.1em; text-transform: uppercase;
     color: var(--ink-muted); display: block; margin-bottom: 2px;
   }
-  .dato-item span { font-size: 12px; font-weight: 500; color: var(--ink); }
+  .dato-item span { font-size: 11px; font-weight: 500; color: var(--ink); }
 
   /* Info contextual de derivación */
   .derivacion-info {
@@ -249,17 +249,17 @@ const css = `
   /* Botón principal de envío */
   .btn-submit {
     width: 100%;
-    padding: 14px;
+    padding: 10px;
     background: var(--accent);
     color: #fff;
     border: none;
     border-radius: var(--radius);
     font-family: 'Poppins', sans-serif;
-    font-size: 15px;
+    font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     transition: var(--transition);
-    margin-top: 8px;
+    margin-top: 6px;
   }
   .btn-submit:hover { background: var(--accent-dark); }
   .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -437,7 +437,6 @@ export default function App() {
       <div className="mda-card">
         <div className="section-label">Agente</div>
         <div className="field">
-          <label>¿Quién atendió?</label>
           <select name="agente" value={form.agente} onChange={cambiar}>
             <option value="">Seleccioná un agente...</option>
             {AGENTES.map(a => <option key={a}>{a}</option>)}
@@ -493,7 +492,7 @@ export default function App() {
         )}
       </div>
 
-      {/* ── Card 3: Detalle de la consulta ── */}
+      {/* ── Card 2: Detalle de la consulta ── */}
       <div className="mda-card">
         <div className="section-label">Detalle de la consulta</div>
         <form onSubmit={enviar}>
