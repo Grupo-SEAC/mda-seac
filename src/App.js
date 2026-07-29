@@ -8,8 +8,13 @@ const N8N_URL = "https://n8n.gruposeac.online/webhook/buscar-cliente";
 const AGENTES = ["Andrés Franco","Anibal Egea","Ayelen Vera","Gastón Citarella","Giselle Alvarez","Mariano Bonnet","Martín Ceballos","Pablo Molino","Vanesa Figueroa"];
 const PRODUCTOS = ["Carga Virtual","SUBE","Cobro Virtual","ReSimple"];
 const TIPOS = ["Reclamo","Consulta técnica","Consulta comercial","Solicitud"];
-const RESUELTO = ["Sí","No","Pendiente"];
-const DERIVADO = ["Nadie","Servicio Técnico","Ejecutivo de Cuentas"];
+const ACCIONES_CASO = ["Ya se resolvió", "Necesita seguimiento", "Derivar a otro sector"];
+const SECTORES_DESTINO = [
+  "Servicio Técnico",
+  "Comercial (próxima etapa)",
+  "Administración de Ventas (próxima etapa)",
+  "Logística (próxima etapa)",
+];
 
 // Config declarativa de los campos de la tarjeta del PDV — para sumar un
 // campo nuevo en el futuro alcanza con agregar una línea acá, no hace
@@ -394,8 +399,8 @@ export default function App() {
     cpu: "", nro_pos: "", lgsube: "", limite_credito: "",
     max_deposito: "", max_deposito_diario: "",
     producto: "", tipo: "",
-    error_especifico: "", descripcion: "", resuelto: "",
-    derivado_a: "", notas: "",
+    error_especifico: "", descripcion: "",
+    accion_caso: "", sector_destino: "", notas: "",
   });
   const [equipamientoAbierto, setEquipamientoAbierto] = useState(false);
 
@@ -682,49 +687,43 @@ export default function App() {
             />
           </div>
 
-          {/* Resuelto y Derivar a en grilla de 2 columnas */}
-          <div className="fields-grid">
-            <div className="field">
-              <label>¿Se resolvió?</label>
-              <select
-                name="resuelto"
-                value={form.resuelto}
-                onChange={e => {
-                  // Si se resolvió, limpia el campo de derivación
-                  // porque no tiene sentido derivar algo ya resuelto
-                  if (e.target.value === "Sí") {
-                    setForm(f => ({ ...f, resuelto: "Sí", derivado_a: "" }));
-                  } else {
-                    cambiar(e);
-                  }
-                }}
-              >
-                <option value="">Seleccioná...</option>
-                {RESUELTO.map(o => <option key={o}>{o}</option>)}
-              </select>
-            </div>
-
-            {/* El campo de derivación solo aparece si NO se resolvió */}
-            {form.resuelto !== "Sí" && (
-              <div className="field">
-                <label>Derivar a</label>
-                <select name="derivado_a" value={form.derivado_a} onChange={cambiar}>
-                  <option value="">Seleccioná...</option>
-                  {DERIVADO.map(o => <option key={o}>{o}</option>)}
-                </select>
-              </div>
-            )}
+          {/* Acción sobre el caso — reemplaza los selectores viejos de resuelto/derivado */}
+          <div className="field">
+            <label>¿Qué hacemos con este caso?</label>
+            <select
+              name="accion_caso"
+              value={form.accion_caso}
+              onChange={e => {
+                // Al cambiar de acción, se limpia el sector destino
+                // para no arrastrar una selección que ya no aplica
+                setForm(f => ({ ...f, accion_caso: e.target.value, sector_destino: "" }));
+              }}
+            >
+              <option value="">Seleccioná...</option>
+              {ACCIONES_CASO.map(o => <option key={o}>{o}</option>)}
+            </select>
           </div>
 
-          {/* Info contextual según la derivación elegida */}
-          {form.derivado_a === "Ejecutivo de Cuentas" && form.eecc && (
-            <div className="derivacion-info">
-              Se enviará un mail a <strong>{form.eecc}@seac.com.ar</strong> con copia a su jefe.
+          {form.accion_caso === "Derivar a otro sector" && (
+            <div className="field">
+              <label>Sector destino</label>
+              <select name="sector_destino" value={form.sector_destino} onChange={cambiar}>
+                <option value="">Seleccioná...</option>
+                {SECTORES_DESTINO.map(o => <option key={o}>{o}</option>)}
+              </select>
             </div>
           )}
-          {form.derivado_a === "Servicio Técnico" && (
+
+          {/* Caso especial: derivar a Comercial avisa automáticamente a quién se notifica */}
+          {form.sector_destino === "Comercial (próxima etapa)" && (
             <div className="derivacion-info">
-              Se creará un ticket en <strong>AppSheet — Servicio Técnico</strong>.
+              Se va a notificar a: <strong>{form.eecc || "—"}</strong>
+            </div>
+          )}
+
+          {form.sector_destino === "Servicio Técnico" && (
+            <div className="derivacion-info">
+              Se creará un ticket en <strong>Zammad — Servicio Técnico</strong>.
             </div>
           )}
 
