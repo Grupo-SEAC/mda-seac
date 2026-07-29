@@ -237,6 +237,33 @@ const css = `
   .autocomplete-item-cliente { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
   .autocomplete-loading { font-size: 11px; color: var(--ink-muted); padding: 8px 0 0; }
 
+  /* Vista compacta del cliente ya seleccionado */
+  .cliente-compacto {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 7px 10px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    margin-bottom: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .btn-cambiar {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .btn-cambiar:hover { text-decoration: underline; }
+
   /* Grilla de datos autocompletos del cliente seleccionado */
   .datos-cliente {
     background: var(--accent-bg);
@@ -498,30 +525,54 @@ export default function App() {
       {/* ── Card 2: Cliente con autocomplete ── */}
       <div className="mda-card">
         <div className="section-label">Cliente</div>
-        <div className="field">
-          <label>Buscar por PDV o nombre</label>
-          {/* El ref permite detectar clicks fuera y cerrar el dropdown */}
-          <div className="autocomplete-wrapper" ref={wrapperRef}>
-            <input
-              value={busqueda}
-              onChange={e => setBusqueda(e.target.value)}
-              placeholder="Escribí el PDV o nombre del cliente..."
-              autoComplete="off"
-            />
-            {cargando && <div className="autocomplete-loading">Buscando...</div>}
-            {/* Dropdown de sugerencias — aparece mientras hay resultados */}
-            {sugerencias.length > 0 && (
-              <div className="autocomplete-dropdown">
-                {sugerencias.map((s, i) => (
-                  <div key={i} className="autocomplete-item" onClick={() => seleccionar(s)}>
-                    <div className="autocomplete-item-pdv">PDV {s["PUNTO DE VENTA"]} — {s["CLIENTE"]}</div>
-                    <div className="autocomplete-item-cliente">{s["SUB CLIENTE"]} · {s["PERFIL"]}</div>
-                  </div>
-                ))}
-              </div>
-            )}
+        {form.cliente ? (
+          <div className="cliente-compacto">
+            <span>PDV {form.pdv} — {form.cliente}</span>
+            <button
+              type="button"
+              className="btn-cambiar"
+              onClick={() => {
+                // Limpia solo los datos del PDV — vuelve a mostrar el
+                // buscador para elegir uno nuevo
+                setForm(f => ({
+                  ...f, pdv: "", cliente: "", sub_cliente: "", canal: "",
+                  localidad: "", provincia: "", perfil: "", eecc: "",
+                  cpu: "", nro_pos: "", lgsube: "", limite_credito: "",
+                  max_deposito: "", max_deposito_diario: "",
+                }));
+                setBusqueda("");
+                setEquipamientoAbierto(false);
+              }}
+            >
+              Cambiar
+            </button>
           </div>
-        </div>
+        ) : (
+          <div className="field">
+            <label>Buscar por PDV o nombre</label>
+            {/* El ref permite detectar clicks fuera y cerrar el dropdown */}
+            <div className="autocomplete-wrapper" ref={wrapperRef}>
+              <input
+                value={busqueda}
+                onChange={e => setBusqueda(e.target.value)}
+                placeholder="Escribí el PDV o nombre del cliente..."
+                autoComplete="off"
+              />
+              {cargando && <div className="autocomplete-loading">Buscando...</div>}
+              {/* Dropdown de sugerencias — aparece mientras hay resultados */}
+              {sugerencias.length > 0 && (
+                <div className="autocomplete-dropdown">
+                  {sugerencias.map((s, i) => (
+                    <div key={i} className="autocomplete-item" onClick={() => seleccionar(s)}>
+                      <div className="autocomplete-item-pdv">PDV {s["PUNTO DE VENTA"]} — {s["CLIENTE"]}</div>
+                      <div className="autocomplete-item-cliente">{s["SUB CLIENTE"]} · {s["PERFIL"]}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Datos autocompletos — solo se muestran cuando hay cliente seleccionado */}
         {form.cliente && (
