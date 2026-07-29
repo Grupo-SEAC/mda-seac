@@ -439,8 +439,8 @@ export default function App() {
   // Debounce del autocomplete — espera 300ms después de que el usuario
   // deja de escribir antes de consultar n8n, para no spamear requests
   useEffect(() => {
-    if (busqueda.length < 2) { setSugerencias([]); return; }
     clearTimeout(timerRef.current);
+    if (busqueda.length < 2) { setSugerencias([]); return; }
     timerRef.current = setTimeout(async () => {
       setCargando(true);
       try {
@@ -508,7 +508,9 @@ export default function App() {
 
     setTimeout(() => {
       if (esProximaEtapa) {
-        mostrarToast(`✓ Guardado. Se notificará a ${form.eecc || "el comercial"} cuando esta etapa esté activa.`);
+        mostrarToast(form.eecc
+          ? `✓ Guardado. Se notificará a ${form.eecc} cuando esta etapa esté activa.`
+          : "✓ Guardado. Se notificará al sector cuando esta etapa esté activa.");
       } else {
         mostrarToast("✓ Caso guardado correctamente");
       }
