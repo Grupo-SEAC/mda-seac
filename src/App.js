@@ -489,35 +489,43 @@ export default function App() {
     setTimeout(() => setToast(null), 3500);
   }
 
-  // Envío del formulario — valida campos obligatorios antes de mandar
+  // Envío del formulario — 100% simulado para la demo de hoy, no llama
+  // a ningún webhook todavía.
+  // TODO: decidir mail vs ticket Zammad para sectores no onboarded — ver brief 30/07
   async function enviar(e) {
     e.preventDefault();
     if (!form.agente) return mostrarToast("Seleccioná un agente", "error");
     if (!form.cliente) return mostrarToast("Buscá y seleccioná un cliente", "error");
     if (!form.producto) return mostrarToast("Seleccioná un producto", "error");
-    if (!form.resuelto) return mostrarToast("Indicá si se resolvió", "error");
-    setEnviando(true);
-    try {
-  // Envía el caso al webhook de n8n que graba en mesadb.casos
-  const { data } = await axios.post(
-    "https://n8n.gruposeac.online/webhook/guardar-caso",
-    form
-  );
-  console.log("Caso guardado:", data);
-  mostrarToast(`Caso #${data.id} registrado correctamente`);
-  // Limpia el formulario pero mantiene el agente seleccionado
-  setForm(f => ({
-    ...f, pdv: "", cliente: "", sub_cliente: "", canal: "",
-    perfil: "", eecc: "", producto: "", tipo: "",
-    error_especifico: "", descripcion: "", resuelto: "",
-    derivado_a: "", notas: "",
-  }));
-  setBusqueda("");
-} catch {
-      mostrarToast("Error al guardar el caso", "error");
-    } finally {
-      setEnviando(false);
+    if (!form.accion_caso) return mostrarToast("Indicá qué hacemos con el caso", "error");
+    if (form.accion_caso === "Derivar a otro sector" && !form.sector_destino) {
+      return mostrarToast("Seleccioná el sector destino", "error");
     }
+
+    setEnviando(true);
+
+    const esProximaEtapa = form.sector_destino.includes("(próxima etapa)");
+
+    setTimeout(() => {
+      if (esProximaEtapa) {
+        mostrarToast(`✓ Guardado. Se notificará a ${form.eecc || "el comercial"} cuando esta etapa esté activa.`);
+      } else {
+        mostrarToast("✓ Caso guardado correctamente");
+      }
+
+      // Limpia el formulario pero mantiene el agente seleccionado
+      setForm(f => ({
+        ...f, pdv: "", cliente: "", sub_cliente: "", canal: "",
+        localidad: "", provincia: "", perfil: "", eecc: "",
+        cpu: "", nro_pos: "", lgsube: "", limite_credito: "",
+        max_deposito: "", max_deposito_diario: "",
+        producto: "", tipo: "", error_especifico: "", descripcion: "",
+        accion_caso: "", sector_destino: "", notas: "",
+      }));
+      setBusqueda("");
+      setEquipamientoAbierto(false);
+      setEnviando(false);
+    }, 500);
   }
 
   return (
