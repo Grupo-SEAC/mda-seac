@@ -136,6 +136,24 @@ const css = `
   }
   .btn-theme:hover { border-color: var(--accent); color: var(--accent); }
 
+  /* Vista compacta del agente ya seleccionado */
+  .agente-compacto {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .btn-editar-agente {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 13px;
+    cursor: pointer;
+    line-height: 1;
+  }
+
   /* Card — contenedor de cada sección del formulario */
   .mda-card {
     background: #fff;
@@ -514,12 +532,25 @@ export default function App() {
       {/* ── Card 1: Agente ── */}
       <div className="mda-card">
         <div className="section-label">Agente</div>
-        <div className="field">
-          <select name="agente" value={form.agente} onChange={cambiar}>
-            <option value="">Seleccioná un agente...</option>
-            {AGENTES.map(a => <option key={a}>{a}</option>)}
-          </select>
-        </div>
+        {form.agente ? (
+          <div className="agente-compacto">
+            <span>Agente: {form.agente}</span>
+            <button
+              type="button"
+              className="btn-editar-agente"
+              onClick={() => setForm(f => ({ ...f, agente: "" }))}
+            >
+              ✎
+            </button>
+          </div>
+        ) : (
+          <div className="field">
+            <select name="agente" value={form.agente} onChange={cambiar}>
+              <option value="">Seleccioná un agente...</option>
+              {AGENTES.map(a => <option key={a}>{a}</option>)}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* ── Card 2: Cliente con autocomplete ── */}
