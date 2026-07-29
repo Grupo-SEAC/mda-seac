@@ -458,10 +458,7 @@ export default function App() {
   // Limpia el formulario pero mantiene el agente seleccionado
   setForm(f => ({
     ...f, pdv: "", cliente: "", sub_cliente: "", canal: "",
-    localidad: "", provincia: "", perfil: "", eecc: "",
-    cpu: "", nro_pos: "", lgsube: "", limite_credito: "",
-    max_deposito: "", max_deposito_diario: "",
-    producto: "", tipo: "",
+    perfil: "", eecc: "", producto: "", tipo: "",
     error_especifico: "", descripcion: "", resuelto: "",
     derivado_a: "", notas: "",
   }));
