@@ -11,6 +11,26 @@ const TIPOS = ["Reclamo","Consulta técnica","Consulta comercial","Solicitud"];
 const RESUELTO = ["Sí","No","Pendiente"];
 const DERIVADO = ["Nadie","Servicio Técnico","Ejecutivo de Cuentas"];
 
+// Config declarativa de los campos de la tarjeta del PDV — para sumar un
+// campo nuevo en el futuro alcanza con agregar una línea acá, no hace
+// falta tocar el JSX de la tarjeta.
+const CAMPOS_PDV = [
+  { campo: "pdv", titulo: "PDV", seccion: "principal" },
+  { campo: "cliente", titulo: "Cliente", seccion: "principal" },
+  { campo: "sub_cliente", titulo: "Sub Cliente", seccion: "principal" },
+  { campo: "canal", titulo: "Canal", seccion: "principal" },
+  { campo: "localidad", titulo: "Localidad", seccion: "principal" },
+  { campo: "provincia", titulo: "Provincia", seccion: "principal" },
+  { campo: "perfil", titulo: "Tipo de cliente", seccion: "principal" },
+  { campo: "eecc", titulo: "Comercial", seccion: "principal" },
+  { campo: "cpu", titulo: "CPU", seccion: "equipamiento" },
+  { campo: "nro_pos", titulo: "POS", seccion: "equipamiento" },
+  { campo: "lgsube", titulo: "LG SUBE", seccion: "equipamiento" },
+  { campo: "limite_credito", titulo: "Límite de Crédito", seccion: "equipamiento" },
+  { campo: "max_deposito", titulo: "Máximo Depósito", seccion: "equipamiento" },
+  { campo: "max_deposito_diario", titulo: "Máximo Depósito Diario", seccion: "equipamiento" },
+];
+
 // ─── CSS del sistema de diseño SEAC ───────────────────────────────────────────
 // Se inyecta programáticamente en el <head> para no mezclarlo con App.css.
 // Usa variables CSS (--accent, --paper, etc.) para soportar dark mode.
@@ -235,6 +255,25 @@ const css = `
   }
   .dato-item span { font-size: 11px; font-weight: 500; color: var(--ink); }
 
+  /* Toggle colapsable de la sección Equipamiento */
+  .btn-equipamiento {
+    display: block;
+    width: 100%;
+    background: none;
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+    padding: 6px 10px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--accent);
+    cursor: pointer;
+    margin-bottom: 10px;
+    transition: var(--transition);
+  }
+  .btn-equipamiento:hover { background: var(--accent-bg); }
+  .datos-equipamiento { margin-top: -4px; }
+
   /* Info contextual de derivación */
   .derivacion-info {
     background: var(--paper-dark);
@@ -306,10 +345,14 @@ export default function App() {
   const [enviando, setEnviando] = useState(false);
   const [form, setForm] = useState({
     agente: "", pdv: "", cliente: "", sub_cliente: "",
-    canal: "", perfil: "", eecc: "", producto: "", tipo: "",
+    canal: "", localidad: "", provincia: "", perfil: "", eecc: "",
+    cpu: "", nro_pos: "", lgsube: "", limite_credito: "",
+    max_deposito: "", max_deposito_diario: "",
+    producto: "", tipo: "",
     error_especifico: "", descripcion: "", resuelto: "",
     derivado_a: "", notas: "",
   });
+  const [equipamientoAbierto, setEquipamientoAbierto] = useState(false);
 
   // Ref para detectar clicks fuera del dropdown y cerrarlo
   const wrapperRef = useRef(null);
@@ -370,8 +413,16 @@ export default function App() {
       cliente: item["CLIENTE"] || "",
       sub_cliente: item["SUB CLIENTE"] || "",
       canal: item["CANAL"] || "",
+      localidad: item["LOCALIDAD"] || "",
+      provincia: item["PROVINCIA"] || "",
       perfil: item["PERFIL"] || "",
       eecc: item["NOMBRE DEL COMERCIAL"] || "",
+      cpu: item["CPU"] || "",
+      nro_pos: item["POS"] || "",
+      lgsube: item["LG SUBE"] || "",
+      limite_credito: item["LIMITE CREDITO"] || "",
+      max_deposito: item["MAXIMO DEPOSITO"] || "",
+      max_deposito_diario: item["MAXIMO DEPOSITO DIARIO"] || "",
     }));
     setBusqueda(item["PUNTO DE VENTA"] + " — " + item["CLIENTE"]);
     setSugerencias([]);
@@ -407,7 +458,10 @@ export default function App() {
   // Limpia el formulario pero mantiene el agente seleccionado
   setForm(f => ({
     ...f, pdv: "", cliente: "", sub_cliente: "", canal: "",
-    perfil: "", eecc: "", producto: "", tipo: "",
+    localidad: "", provincia: "", perfil: "", eecc: "",
+    cpu: "", nro_pos: "", lgsube: "", limite_credito: "",
+    max_deposito: "", max_deposito_diario: "",
+    producto: "", tipo: "",
     error_especifico: "", descripcion: "", resuelto: "",
     derivado_a: "", notas: "",
   }));
@@ -474,21 +528,35 @@ export default function App() {
 
         {/* Datos autocompletos — solo se muestran cuando hay cliente seleccionado */}
         {form.cliente && (
-          <div className="datos-cliente">
-            {[
-              ["PDV", form.pdv],
-              ["Cliente", form.cliente],
-              ["Sub cliente", form.sub_cliente],
-              ["Canal", form.canal],
-              ["Perfil", form.perfil],
-              ["EECC", form.eecc],
-            ].map(([l, v]) => (
-              <div className="dato-item" key={l}>
-                <label>{l}</label>
-                <span>{v || "—"}</span>
+          <>
+            <div className="datos-cliente">
+              {CAMPOS_PDV.filter(c => c.seccion === "principal").map(c => (
+                <div className="dato-item" key={c.campo}>
+                  <label>{c.titulo}</label>
+                  <span>{form[c.campo] || "—"}</span>
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              className="btn-equipamiento"
+              onClick={() => setEquipamientoAbierto(a => !a)}
+            >
+              {equipamientoAbierto ? "Ocultar equipamiento ▴" : "Ver equipamiento ▾"}
+            </button>
+
+            {equipamientoAbierto && (
+              <div className="datos-cliente datos-equipamiento">
+                {CAMPOS_PDV.filter(c => c.seccion === "equipamiento").map(c => (
+                  <div className="dato-item" key={c.campo}>
+                    <label>{c.titulo}</label>
+                    <span>{form[c.campo] || "—"}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
 
