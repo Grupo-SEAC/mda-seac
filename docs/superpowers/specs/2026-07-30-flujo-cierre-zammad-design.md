@@ -68,7 +68,7 @@ const CAMPOS_PDV = [
   { campo: "nombre_vendedor",titulo: "Comercial",     seccion: "principal" },
   { campo: "cpu",            titulo: "CPU",                    seccion: "equipamiento" },
   { campo: "nro_pos",        titulo: "POS",                    seccion: "equipamiento" },
-  { campo: "lg_sube",        titulo: "LG SUBE",                seccion: "equipamiento" },
+  { campo: "lgsube",         titulo: "LG SUBE",                seccion: "equipamiento" },
   { campo: "limite_credito", titulo: "Límite de Crédito",      seccion: "equipamiento" },
   { campo: "max_deposito",   titulo: "Máximo Depósito",        seccion: "equipamiento" },
   { campo: "max_deposito_diario", titulo: "Máximo Depósito Diario", seccion: "equipamiento" },
@@ -100,7 +100,7 @@ SELECT DISTINCT
   nombre_vendedor         as "NOMBRE DEL COMERCIAL",
   cpu                     as "CPU",
   nro_pos                 as "POS",
-  lg_sube                 as "LG SUBE",
+  lgsube                   as "LG SUBE",
   limite_credito          as "LIMITE CREDITO",
   max_deposito            as "MAXIMO DEPOSITO",
   max_deposito_diario     as "MAXIMO DEPOSITO DIARIO"
@@ -112,7 +112,7 @@ WHERE (
 LIMIT 10
 ```
 
-Nota: `lg_sube` es el nombre asumido según el brief ("confirmar nombre exacto del campo contra la base") — si al aplicar el cambio en n8n el nombre real de columna es distinto, ajustar ahí mismo (no bloquea el resto del trabajo, es una sola línea de SQL).
+Nota: nombre de columna confirmado por el usuario — es `lgsube` (sin guión bajo), no `lg_sube`.
 
 Una sola llamada al webhook sigue trayendo todo (comportamiento actual, confirmado por el usuario — no se parte en dos pasos).
 
@@ -144,4 +144,3 @@ Click en el lápiz vuelve a mostrar el selector.
 - Crear tickets reales en Zammad para "Servicio Técnico" (el brief lo describe como comportamiento futuro deseado; hoy todo el submit es simulado).
 - Envío de mail real a vendedores/EECC.
 - Decisión mail vs. ticket Zammad para sectores no onboarded (queda como TODO en código).
-- Confirmar el nombre exacto de columna `lg_sube` contra la base (ajuste menor, no bloqueante).
