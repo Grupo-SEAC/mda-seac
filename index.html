@@ -117,9 +117,17 @@ html.dark .mda-result:hover { background: #1e3a8a; }
 .mda-selected { border: 1.5px solid var(--mda-accent); background: var(--mda-accent-bg); }
 html.dark .mda-selected { background: #1e3a8a; border-color: var(--mda-accent); }
 .mda-selected .pdv { font-size: 16px; }
-.mda-kv { display: flex; gap: 8px; font-size: 12.5px; margin-top: 6px; }
-.mda-kv b { font-weight: 600; color: var(--mda-ink-soft); min-width: 76px; }
-.mda-kv span { color: var(--mda-ink); }
+.mda-kv { display: flex; gap: 8px; font-size: 12.5px; margin-top: 6px; align-items: baseline; }
+.mda-kv b { font-weight: 600; color: var(--mda-ink-soft); min-width: 132px; flex-shrink: 0; }
+.mda-kv span { color: var(--mda-ink); word-break: break-word; }
+
+.mda-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 9px; }
+.mda-acciones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.mda-detalle-bloque { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--mda-line); }
+.mda-detalle-titulo {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--mda-ink-ghost); margin-bottom: 8px;
+}
 
 .mda-badge {
   display: inline-flex; align-items: center; font-size: 11px; font-weight: 700;
@@ -275,19 +283,23 @@ const CONFIG = Object.assign({
 
 // Verificados contra la base el 09/09/2026. Solo grupos hoja: los padres
 // (Operaciones, Operaciones::Resimple, etc.) existen pero no se usan para cargar.
+//
+// producto: se autocompleta al elegir el grupo, porque la estructura de grupos
+// mezcla producto, linea comercial y cliente (ver DA-018). Vacio donde el grupo
+// no determina el producto: Flanor es un cliente y puede reclamar por cualquiera.
 const GRUPOS = [
-  'Operaciones::Carga Virtual::Carga',
-  'Operaciones::Carga Virtual::Cobro',
-  'Operaciones::Carga Virtual::Depositos',
-  'Operaciones::Carga Virtual::Sube',
-  'Operaciones::Carga Virtual Pagos::CV Pagos',
-  'Operaciones::Resimple::Flanor',
-  'Operaciones::Resimple::QR Max',
-  'Operaciones::Resimple::Resimple - Seac Pagos',
-  'Servicio Técnico',
+  { value: 'Operaciones::Carga Virtual::Carga',            producto: 'Carga Virtual' },
+  { value: 'Operaciones::Carga Virtual::Cobro',            producto: 'Cobro Virtual' },
+  { value: 'Operaciones::Carga Virtual::Depositos',        producto: 'Depósitos' },
+  { value: 'Operaciones::Carga Virtual::Sube',             producto: 'SUBE' },
+  { value: 'Operaciones::Carga Virtual Pagos::CV Pagos',   producto: 'CV Pagos' },
+  { value: 'Operaciones::Resimple::Flanor',                producto: '' },
+  { value: 'Operaciones::Resimple::QR Max',                producto: 'QR Max' },
+  { value: 'Operaciones::Resimple::Resimple - Seac Pagos', producto: 'Seac Pagos' },
+  { value: 'Servicio Técnico',                             producto: '' },
 ];
 
-const PRODUCTOS = ['Carga Virtual','Cobro Virtual','SUBE','Depósitos','Seac Pagos','QR Max','Billetera Resimple'];
+const PRODUCTOS = ['Carga Virtual','Cobro Virtual','SUBE','Depósitos','Seac Pagos','QR Max','Billetera Resimple','CV Pagos'];
 
 const SOLUCIONES = ['Resuelto en el momento','Configuración aplicada','Reproceso / reintento',
   'Capacitación al cliente','Escalado a Servicio Técnico','Escalado a proveedor',
@@ -318,7 +330,19 @@ function opciones(sel, lista, vacio) {
   });
 }
 
-opciones($('grupo'), GRUPOS, '— Elegir grupo —');
+function opcionesGrupo(sel) {
+  sel.innerHTML = '';
+  const o = document.createElement('option');
+  o.value = ''; o.textContent = '— Elegir grupo —';
+  sel.appendChild(o);
+  GRUPOS.forEach(g => {
+    const op = document.createElement('option');
+    op.value = g.value;
+    op.textContent = g.value.split('::').join('  →  ');
+    sel.appendChild(op);
+  });
+}
+opcionesGrupo($('grupo'));
 opciones($('producto'), PRODUCTOS, '— Sin especificar —');
 opciones($('solucion'), SOLUCIONES, '— Sin resolver aún —');
 opciones($('motivoCat'), Object.keys(MOTIVOS), '— Categoría —');
@@ -415,28 +439,94 @@ function escapar(s) {
     ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]);
 }
 
+// Secciones del detalle del PDV. Solo se muestran los campos con valor: con
+// 88.000 organizaciones cargadas por importacion, media tarjeta seria guiones.
+const CAMPOS_PDV = [
+  ['Cliente', [
+    ['numero_cliente', 'Nº de cliente'], ['subcliente', 'Subcliente'],
+    ['cuit_subcliente', 'CUIT'], ['grupo_economico', 'Grupo económico'],
+    ['id_sucursal', 'Sucursal'], ['estado_cliente', 'Estado del cliente'],
+    ['estado_subcliente', 'Estado del subcliente'],
+  ]],
+  ['Comercial', [
+    ['comercial', 'Comercial'], ['tipo_cliente', 'Tipo de cliente'],
+    ['canal', 'Canal'], ['rubro', 'Rubro'],
+    ['grupo_productos', 'Grupo de productos'], ['es_premium', 'Premium'],
+  ]],
+  ['Equipamiento', [
+    ['pos', 'POS'], ['pos_payway', 'POS Payway'], ['pinpad', 'Pinpad'],
+    ['cpu', 'CPU'], ['impresora', 'Impresora'], ['monitor', 'Monitor'],
+    ['escaner', 'Escáner'], ['lector_grabador_sube', 'Lector SUBE'],
+    ['telefono_ip', 'Teléfono IP'], ['puesto_rapipago', 'Puesto Rapipago'],
+    ['tiene_hard_key', 'Hard key'], ['cobro_web', 'Cobro web'],
+  ]],
+  ['Operativo', [
+    ['lcco', 'LCCO'],
+    ['cant_max_anulaciones_diaria', 'Máx. anulaciones por día'],
+    ['cant_max_anulaciones_30dias', 'Máx. anulaciones 30 días'],
+    ['excepcion_cargos', 'Excepción de cargos'],
+    ['observaciones_auditoria', 'Observaciones de auditoría'],
+  ]],
+  ['Ubicación', [
+    ['piso', 'Piso'], ['partido_barrio', 'Partido / barrio'], ['cp', 'CP'],
+    ['direccion_google', 'Dirección Google'],
+  ]],
+];
+
+function valorLegible(v) {
+  if (v === null || v === undefined) return '';
+  if (v === true  || v === 'true')  return 'Sí';
+  if (v === false || v === 'false') return '';
+  const s = String(v).trim();
+  return (s === '' || s === '-') ? '' : s;
+}
+
+function detallePdv(o) {
+  let html = '';
+  CAMPOS_PDV.forEach(([titulo, campos]) => {
+    const filas = campos
+      .map(([k, etiqueta]) => [etiqueta, valorLegible(o[k])])
+      .filter(([, v]) => v !== '');
+    if (!filas.length) return;
+    html += '<div class="mda-detalle-bloque"><div class="mda-detalle-titulo">' + titulo + '</div>' +
+      filas.map(([e, v]) =>
+        '<div class="mda-kv"><b>' + escapar(e) + '</b><span>' + escapar(v) + '</span></div>').join('') +
+      '</div>';
+  });
+  return html || '<div class="mda-empty">Sin datos adicionales cargados para este PDV.</div>';
+}
+
 function elegir(o) {
   pdv = o;
   $('resultados').innerHTML = '';
   $('q').value = '';
-  const equipo = [
-    o.pos ? 'POS ' + o.pos : null,
-    o.pos_payway ? 'Payway ' + o.pos_payway : null,
-    o.pinpad ? 'Pinpad ' + o.pinpad : null,
-  ].filter(Boolean).join(' · ');
+
+  const badges =
+    (valorLegible(o.estado_pdv) ? '<span class="mda-badge badge-info">' + escapar(o.estado_pdv) + '</span>' : '') +
+    (valorLegible(o.es_premium) ? '<span class="mda-badge badge-warn">Premium</span>' : '');
 
   $('pdvElegido').innerHTML =
     '<div class="mda-result mda-selected animate-fade">' +
       '<div class="pdv">PDV ' + escapar(o.numero_pdv ?? '—') + '</div>' +
       '<div class="razon">' + escapar(o.razon_social || o.nombre_fantasia || '') + '</div>' +
       '<div class="dir">' + escapar([o.direccion, o.altura, o.localidad, o.provincia].filter(Boolean).join(' ')) + '</div>' +
-      (o.contacto  ? '<div class="mda-kv"><b>Contacto</b><span>' + escapar(o.contacto) + '</span></div>' : '') +
-      (o.telefono  ? '<div class="mda-kv"><b>Teléfono</b><span>' + escapar(o.telefono) + '</span></div>' : '') +
-      (o.email_pdv ? '<div class="mda-kv"><b>Correo</b><span>' + escapar(o.email_pdv) + '</span></div>' : '') +
-      (equipo      ? '<div class="mda-kv"><b>Equipos</b><span>' + escapar(equipo) + '</span></div>' : '') +
-      (o.estado_pdv ? '<div style="margin-top:9px"><span class="mda-badge badge-info">' + escapar(o.estado_pdv) + '</span></div>' : '') +
-      '<div style="margin-top:12px"><button class="mda-btn-ghost" id="btnQuitar">Elegir otro PDV</button></div>' +
+      (badges ? '<div class="mda-badges">' + badges + '</div>' : '') +
+      (valorLegible(o.contacto)  ? '<div class="mda-kv"><b>Contacto</b><span>' + escapar(o.contacto) + '</span></div>' : '') +
+      (valorLegible(o.telefono)  ? '<div class="mda-kv"><b>Teléfono</b><span>' + escapar(o.telefono) + '</span></div>' : '') +
+      (valorLegible(o.email_pdv) ? '<div class="mda-kv"><b>Correo</b><span>' + escapar(o.email_pdv) + '</span></div>' : '') +
+      (valorLegible(o.comercial) ? '<div class="mda-kv"><b>Comercial</b><span>' + escapar(o.comercial) + '</span></div>' : '') +
+      '<div class="mda-acciones">' +
+        '<button class="mda-btn-ghost" id="btnDetalle">Ver todos los datos</button>' +
+        '<button class="mda-btn-ghost" id="btnQuitar">Elegir otro PDV</button>' +
+      '</div>' +
+      '<div id="pdvDetalle" hidden>' + detallePdv(o) + '</div>' +
     '</div>';
+
+  $('btnDetalle').addEventListener('click', () => {
+    const d = $('pdvDetalle');
+    d.hidden = !d.hidden;
+    $('btnDetalle').textContent = d.hidden ? 'Ver todos los datos' : 'Ocultar datos';
+  });
 
   $('btnQuitar').addEventListener('click', () => {
     pdv = null; $('pdvElegido').innerHTML = ''; $('q').focus(); autoTitulo(); validar();
@@ -479,10 +569,19 @@ function autoTitulo() {
   $('titulo').value = [p, sub].filter(Boolean).join(' - ');
 }
 
+// --- grupo determina el producto -------------------------------------------
+let productoTocado = false;
+$('producto').addEventListener('change', () => { productoTocado = true; });
+
+$('grupo').addEventListener('change', () => {
+  const g = GRUPOS.find(x => x.value === $('grupo').value);
+  if (g && g.producto && !productoTocado) $('producto').value = g.producto;
+  validar();
+});
+
 // --- validacion -------------------------------------------------------------
 ['grupo','errorProblema','personaContacto','titulo'].forEach(id =>
   $(id).addEventListener('input', validar));
-$('grupo').addEventListener('change', validar);
 
 function faltantes() {
   const f = [];
@@ -554,7 +653,7 @@ async function crear() {
 }
 
 function limpiarFormulario() {
-  pdv = null; tituloTocado = false;
+  pdv = null; tituloTocado = false; productoTocado = false;
   $('pdvElegido').innerHTML = '';
   ['q','errorProblema','personaContacto','numeroContacto','titulo','relato'].forEach(id => $(id).value = '');
   ['grupo','producto','solucion','motivoCat'].forEach(id => $(id).selectedIndex = 0);
