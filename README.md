@@ -1,70 +1,80 @@
-# Getting Started with Create React App
+# MDA — Alta de tickets en Zammad
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+App de una sola página para que los agentes creen tickets en Zammad sin salir
+del chat de tawk.to. Reemplaza a la app React anterior.
 
-## Available Scripts
+Servida como estático desde https://mda.gruposeac.online
 
-In the project directory, you can run:
+## Por que un solo archivo
 
-### `npm start`
+El formulario quedo en seis campos despues de retirar del ticket numero_pdv,
+cuit y tipo_gestion (la organizacion identifica el PDV afectado desde el parche
+al core de Zammad, ver repo zammad-seac-patches). Con ese alcance, un build de
+React era mas infraestructura que producto: no hay build, no hay dependencias,
+no hay pipeline que se rompa.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Arquitectura
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+    Navegador del agente
+      -> GET  n8n/webhook/zammad-buscar-pdv?q=...   (autocomplete de PDV)
+      -> POST n8n/webhook/zammad-crear-ticket        (alta del ticket)
+                  |
+                  v
+      n8n (token de Zammad en credencial)  ->  Zammad API REST
 
-### `npm test`
+La app nunca habla directo con Zammad: el token quedaria expuesto en el
+navegador y Zammad no habilita CORS para origenes externos.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Lectura de PDV por SQL (usuario zammadread, solo SELECT sobre organizations y
+users, con indices pg_trgm). Escritura de tickets SIEMPRE por API REST: un
+INSERT directo saltearia el numero de ticket, el article, el historial, el
+indice de Elasticsearch y los triggers.
 
-### `npm run build`
+## Configuracion
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+    cp config.example.js config.js
+    # editar config.js y completar AUTH_VALUE
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+config.js esta en .gitignore. Contiene la clave del header que autentica los
+webhooks de n8n.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+Esa clave viaja al navegador y es legible por cualquiera que abra las
+herramientas de desarrollo. No es un secreto fuerte: protege del curioso
+casual, no de alguien decidido. La proteccion real es que el vhost solo sea
+accesible desde la red de SEAC.
 
-### `npm run eject`
+## Deploy
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+    cd /home/gruposeac-mda/htdocs/mda.gruposeac.online
+    git pull
+    chown -R gruposeac-mda:gruposeac-mda .
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+config.js no se toca porque no esta versionado.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## Mantenimiento
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+Tres listas estan hardcodeadas en index.html y hay que actualizarlas a mano si
+cambian en Zammad: GRUPOS, PRODUCTOS, SOLUCIONES y MOTIVOS.
 
-## Learn More
+Verificar contra la base:
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+    SELECT name FROM groups WHERE active = true ORDER BY name;
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+    SELECT a.name, a.data_option
+    FROM object_manager_attributes a
+    JOIN object_lookups o ON o.id = a.object_lookup_id
+    WHERE o.name = 'Ticket' AND a.data_type IN ('select','tree_select');
 
-### Code Splitting
+Un nombre de grupo mal escrito hace fallar la creacion con un error poco claro.
+Pendiente: servir esas listas desde un tercer webhook que lea
+object_manager_attributes, para que dejen de estar duplicadas.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+## Notas
 
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- El agente define su correo una vez (se guarda en localStorage). Tambien se
+  acepta ?agente=fulano@seac.com.ar en la URL.
+- El ticket se crea con X-On-Behalf-Of para que quede a nombre del agente real
+  y no del usuario de servicio api-mda@seac.com.ar.
+- Si el cliente no puede identificar su PDV, buscar "no identificado": existe
+  una organizacion con ese nombre para no forzar al agente a elegir cualquiera.
+- Si Zammad rechaza el alta, el formulario NO se limpia.
