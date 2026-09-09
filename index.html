@@ -126,8 +126,14 @@ html.dark .mda-selected { background: #1e3a8a; border-color: var(--mda-accent); 
 .mda-detalle-bloque { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--mda-line); }
 .mda-detalle-titulo {
   font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
-  color: var(--mda-ink-ghost); margin-bottom: 8px;
+  color: var(--mda-accent); margin-bottom: 12px;
 }
+.mda-campo { margin-bottom: 12px; }
+.mda-campo-label {
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--mda-ink-ghost); margin-bottom: 2px;
+}
+.mda-campo-valor { font-size: 13.5px; color: var(--mda-ink); word-break: break-word; }
 
 .mda-badge {
   display: inline-flex; align-items: center; font-size: 11px; font-weight: 700;
@@ -441,29 +447,31 @@ function escapar(s) {
 
 // Secciones del detalle del PDV. Solo se muestran los campos con valor: con
 // 88.000 organizaciones cargadas por importacion, media tarjeta seria guiones.
+// El tercer elemento 'bool' marca los campos que se muestran siempre como
+// si/no, igual que Zammad. El resto se oculta cuando esta vacio.
 const CAMPOS_PDV = [
   ['Cliente', [
     ['numero_cliente', 'Nº de cliente'], ['subcliente', 'Subcliente'],
     ['cuit_subcliente', 'CUIT'], ['grupo_economico', 'Grupo económico'],
-    ['id_sucursal', 'Sucursal'], ['estado_cliente', 'Estado del cliente'],
-    ['estado_subcliente', 'Estado del subcliente'],
+    ['id_sucursal', 'Sucursal'], ['estado_cliente', 'Estado cliente'],
+    ['estado_subcliente', 'Estado subcliente'],
   ]],
   ['Comercial', [
     ['comercial', 'Comercial'], ['tipo_cliente', 'Tipo de cliente'],
     ['canal', 'Canal'], ['rubro', 'Rubro'],
-    ['grupo_productos', 'Grupo de productos'], ['es_premium', 'Premium'],
+    ['grupo_productos', 'Grupo de productos'], ['es_premium', 'Premium', 'bool'],
   ]],
   ['Equipamiento', [
     ['pos', 'POS'], ['pos_payway', 'POS Payway'], ['pinpad', 'Pinpad'],
     ['cpu', 'CPU'], ['impresora', 'Impresora'], ['monitor', 'Monitor'],
-    ['escaner', 'Escáner'], ['lector_grabador_sube', 'Lector SUBE'],
+    ['escaner', 'Escáner'], ['lector_grabador_sube', 'Lector grabador SUBE'],
     ['telefono_ip', 'Teléfono IP'], ['puesto_rapipago', 'Puesto Rapipago'],
-    ['tiene_hard_key', 'Hard key'], ['cobro_web', 'Cobro web'],
+    ['tiene_hard_key', 'Tiene hard key', 'bool'], ['cobro_web', 'Cobro web', 'bool'],
   ]],
   ['Operativo', [
     ['lcco', 'LCCO'],
-    ['cant_max_anulaciones_diaria', 'Máx. anulaciones por día'],
-    ['cant_max_anulaciones_30dias', 'Máx. anulaciones 30 días'],
+    ['cant_max_anulaciones_diaria', 'Cant. máx. anulaciones diaria'],
+    ['cant_max_anulaciones_30dias', 'Cant. máx. anulaciones 30 días'],
     ['excepcion_cargos', 'Excepción de cargos'],
     ['observaciones_auditoria', 'Observaciones de auditoría'],
   ]],
@@ -471,12 +479,17 @@ const CAMPOS_PDV = [
     ['piso', 'Piso'], ['partido_barrio', 'Partido / barrio'], ['cp', 'CP'],
     ['direccion_google', 'Dirección Google'],
   ]],
+  ['Organización en Zammad', [
+    ['nota', 'Nota'], ['shared', 'Organización compartida', 'bool'],
+    ['domain_assignment', 'Asignación basada en dominio', 'bool'],
+    ['domain', 'Dominio'], ['vip', 'VIP', 'bool'],
+  ]],
 ];
 
 function valorLegible(v) {
   if (v === null || v === undefined) return '';
-  if (v === true  || v === 'true')  return 'Sí';
-  if (v === false || v === 'false') return '';
+  if (v === true  || v === 'true')  return 'sí';
+  if (v === false || v === 'false') return 'no';
   const s = String(v).trim();
   return (s === '' || s === '-') ? '' : s;
 }
@@ -485,12 +498,19 @@ function detallePdv(o) {
   let html = '';
   CAMPOS_PDV.forEach(([titulo, campos]) => {
     const filas = campos
-      .map(([k, etiqueta]) => [etiqueta, valorLegible(o[k])])
+      .map(([k, etiqueta, tipo]) => {
+        const bruto = (k === 'nota') ? o.note : o[k];
+        const v = valorLegible(bruto);
+        // Los booleanos se muestran siempre; el resto solo si tiene valor.
+        if (tipo === 'bool') return [etiqueta, v === '' ? 'no' : v];
+        return [etiqueta, v];
+      })
       .filter(([, v]) => v !== '');
     if (!filas.length) return;
     html += '<div class="mda-detalle-bloque"><div class="mda-detalle-titulo">' + titulo + '</div>' +
       filas.map(([e, v]) =>
-        '<div class="mda-kv"><b>' + escapar(e) + '</b><span>' + escapar(v) + '</span></div>').join('') +
+        '<div class="mda-campo"><div class="mda-campo-label">' + escapar(e) + '</div>' +
+        '<div class="mda-campo-valor">' + escapar(v) + '</div></div>').join('') +
       '</div>';
   });
   return html || '<div class="mda-empty">Sin datos adicionales cargados para este PDV.</div>';
