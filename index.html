@@ -168,6 +168,15 @@ html.dark .mda-selected { background: #1e3a8a; border-color: var(--mda-accent); 
 
 .mda-empty { font-size: 13px; color: var(--mda-ink-soft); padding: 10px 2px; }
 
+.mda-previo {
+  font-size: 13px; line-height: 1.55; padding: 12px 14px; margin-bottom: 14px;
+  border-radius: var(--mda-radius); background: var(--mda-paper-warm); color: var(--mda-ink);
+  border: 1.5px solid var(--mda-line);
+}
+html.dark .mda-previo { background: #1e293b; border-color: #1e3a5f; }
+.mda-previo b { font-weight: 600; }
+.mda-previo.alerta { background: #fff7ed; border-color: rgba(194,98,10,0.35); color: #8a4708; }
+
 @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 .animate-fade { animation: fadeIn 0.35s cubic-bezier(0.16,1,0.3,1); }
 
@@ -255,6 +264,15 @@ html.dark .mda-selected { background: #1e3a8a; border-color: var(--mda-accent); 
       </div>
 
       <div class="mda-field">
+        <label for="derivar">Derivar a</label>
+        <select id="derivar">
+          <option value="">— No derivar —</option>
+          <option value="tecnico">Servicio Técnico</option>
+          <option value="comercial">El comercial del PDV</option>
+        </select>
+      </div>
+
+      <div class="mda-field">
         <label for="titulo">Título del ticket <span class="req">*</span></label>
         <input type="text" id="titulo" autocomplete="off">
         <div class="mda-hint">Se completa solo al elegir el PDV y el motivo. Podés editarlo.</div>
@@ -265,6 +283,7 @@ html.dark .mda-selected { background: #1e3a8a; border-color: var(--mda-accent); 
         <textarea id="relato" placeholder="Pegá acá la conversación de tawk.to"></textarea>
       </div>
 
+      <div id="previo" class="mda-previo"></div>
       <button class="mda-btn" id="btnCrear" disabled>Crear ticket</button>
     </div>
 
@@ -556,6 +575,7 @@ function elegir(o) {
   if (!$('numeroContacto').value && o.telefono)  $('numeroContacto').value = o.telefono;
 
   autoTitulo();
+  pintarPrevio();
   validar();
 }
 
@@ -599,6 +619,59 @@ $('grupo').addEventListener('change', () => {
   validar();
 });
 
+// --- que va a pasar al guardar ---------------------------------------------
+// El estado sale de la solucion elegida, para no agregarle otra pregunta al
+// agente. Pero la regla se muestra: si no se ve, nadie entiende por que unos
+// tickets se cierran solos y otros no.
+const SOLUCIONES_QUE_CIERRAN = [
+  'Resuelto en el momento', 'Configuración aplicada', 'Reproceso / reintento',
+  'Capacitación al cliente', 'Sin solución / cliente desiste', 'Duplicado / sin acción',
+];
+
+function comercialValido(c) {
+  const s = (c || '').trim();
+  if (!s || s === '-' || s === 'test' || s.toLowerCase().startsWith('(baja)')) return '';
+  return s;
+}
+
+function plan() {
+  const cierra = SOLUCIONES_QUE_CIERRAN.includes($('solucion').value);
+  const derivar = $('derivar').value;
+  return {
+    estado:  cierra ? 'closed' : 'new',
+    grupo:   derivar === 'tecnico' ? 'Servicio Técnico' : $('grupo').value,
+    derivar: derivar,
+    comercial: comercialValido(pdv && pdv.comercial),
+  };
+}
+
+function pintarPrevio() {
+  const p = plan();
+  const box = $('previo');
+  box.classList.remove('alerta');
+
+  if (!$('grupo').value) { box.textContent = ''; return; }
+
+  let txt = p.estado === 'closed'
+    ? 'Se va a crear <b>cerrado</b> y a tu nombre.'
+    : 'Se va a crear <b>abierto</b>.';
+
+  if (p.derivar === 'tecnico') {
+    txt += ' Va al grupo <b>Servicio Técnico</b> en vez de ' + escapar($('grupo').value.split('::').pop()) + '.';
+  } else if (p.derivar === 'comercial') {
+    if (p.comercial) {
+      txt += ' Se le avisa por correo a <b>' + escapar(p.comercial) + '@seac.com.ar</b>.';
+    } else {
+      txt += ' <b>Este PDV no tiene un comercial válido cargado</b>, así que no se va a poder avisar a nadie.';
+      box.classList.add('alerta');
+    }
+  }
+
+  box.innerHTML = txt;
+}
+
+['solucion','derivar','grupo'].forEach(id => $(id).addEventListener('change', pintarPrevio));
+
 // --- validacion -------------------------------------------------------------
 ['grupo','errorProblema','personaContacto','titulo'].forEach(id =>
   $(id).addEventListener('input', validar));
@@ -632,9 +705,13 @@ async function crear() {
   $('btnCrear').disabled = true;
   $('btnCrear').innerHTML = '<span class="spinner"></span> Creando…';
 
+  const p = plan();
   const cuerpo = {
     title:            $('titulo').value.trim(),
-    group:            $('grupo').value,
+    group:            p.grupo,
+    estado:           p.estado,
+    derivar:          p.derivar,
+    comercial:        p.comercial,
     customer_id:      pdv.customer_id ?? null,
     organization_id:  pdv.organization_id,
     producto:         $('producto').value,
@@ -676,9 +753,10 @@ function limpiarFormulario() {
   pdv = null; tituloTocado = false; productoTocado = false;
   $('pdvElegido').innerHTML = '';
   ['q','errorProblema','personaContacto','numeroContacto','titulo','relato'].forEach(id => $(id).value = '');
-  ['grupo','producto','solucion','motivoCat'].forEach(id => $(id).selectedIndex = 0);
+  ['grupo','producto','solucion','motivoCat','derivar'].forEach(id => $(id).selectedIndex = 0);
   opciones($('motivoSub'), [], '— Subcategoría —');
   $('motivoSub').disabled = true;
+  $('previo').innerHTML = '';
   $('q').focus();
   validar();
 }
