@@ -264,15 +264,6 @@ html.dark .mda-previo { background: #1e293b; border-color: #1e3a5f; }
       </div>
 
       <div class="mda-field">
-        <label for="derivar">Derivar a</label>
-        <select id="derivar">
-          <option value="">— No derivar —</option>
-          <option value="tecnico">Servicio Técnico</option>
-          <option value="comercial">El comercial del PDV</option>
-        </select>
-      </div>
-
-      <div class="mda-field">
         <label for="titulo">Título del ticket <span class="req">*</span></label>
         <input type="text" id="titulo" autocomplete="off">
         <div class="mda-hint">Se completa solo al elegir el PDV y el motivo. Podés editarlo.</div>
@@ -327,8 +318,8 @@ const GRUPOS = [
 const PRODUCTOS = ['Carga Virtual','Cobro Virtual','SUBE','Depósitos','Seac Pagos','QR Max','Billetera Resimple','CV Pagos'];
 
 const SOLUCIONES = ['Resuelto en el momento','Configuración aplicada','Reproceso / reintento',
-  'Capacitación al cliente','Escalado a Servicio Técnico','Escalado a proveedor',
-  'Sin solución / cliente desiste','Duplicado / sin acción'];
+  'Capacitación al cliente','Escalado a Servicio Técnico','Derivado al comercial',
+  'Escalado a proveedor','Sin solución / cliente desiste','Duplicado / sin acción'];
 
 const MOTIVOS = {
   'Transaccional':     ['Cobro o transaccion fallida','Pago no acreditado','Carga y recargas','Consulta de saldo'],
@@ -634,13 +625,19 @@ function comercialValido(c) {
   return s;
 }
 
+// La solucion es la unica decision: de ella salen el estado, el grupo final y
+// el aviso al comercial. Antes habia un selector "Derivar a" aparte y el agente
+// terminaba diciendo lo mismo tres veces (grupo, solucion y derivacion), con la
+// posibilidad de contradecirse entre las tres.
 function plan() {
-  const cierra = SOLUCIONES_QUE_CIERRAN.includes($('solucion').value);
-  const derivar = $('derivar').value;
+  const sol = $('solucion').value;
+  const derivar = sol === 'Escalado a Servicio Técnico' ? 'tecnico'
+                : sol === 'Derivado al comercial'       ? 'comercial'
+                : '';
   return {
-    estado:  cierra ? 'closed' : 'new',
-    grupo:   derivar === 'tecnico' ? 'Servicio Técnico' : $('grupo').value,
-    derivar: derivar,
+    estado:    SOLUCIONES_QUE_CIERRAN.includes(sol) ? 'closed' : 'new',
+    grupo:     derivar === 'tecnico' ? 'Servicio Técnico' : $('grupo').value,
+    derivar:   derivar,
     comercial: comercialValido(pdv && pdv.comercial),
   };
 }
@@ -650,14 +647,16 @@ function pintarPrevio() {
   const box = $('previo');
   box.classList.remove('alerta');
 
-  if (!$('grupo').value) { box.textContent = ''; return; }
+  if (!$('grupo').value) { box.innerHTML = ''; return; }
 
   let txt = p.estado === 'closed'
     ? 'Se va a crear <b>cerrado</b> y a tu nombre.'
     : 'Se va a crear <b>abierto</b>.';
 
   if (p.derivar === 'tecnico') {
-    txt += ' Va al grupo <b>Servicio Técnico</b> en vez de ' + escapar($('grupo').value.split('::').pop()) + '.';
+    const orig = $('grupo').value.split('::').pop();
+    txt += ' Va al grupo <b>Servicio Técnico</b>' +
+           (orig && orig !== 'Servicio Técnico' ? ' en vez de ' + escapar(orig) : '') + '.';
   } else if (p.derivar === 'comercial') {
     if (p.comercial) {
       txt += ' Se le avisa por correo a <b>' + escapar(p.comercial) + '@seac.com.ar</b>.';
@@ -667,10 +666,11 @@ function pintarPrevio() {
     }
   }
 
+  txt += ' Queda registrado que lo originaste vos.';
   box.innerHTML = txt;
 }
 
-['solucion','derivar','grupo'].forEach(id => $(id).addEventListener('change', pintarPrevio));
+['solucion','grupo'].forEach(id => $(id).addEventListener('change', pintarPrevio));
 
 // --- validacion -------------------------------------------------------------
 ['grupo','errorProblema','personaContacto','titulo'].forEach(id =>
@@ -753,7 +753,7 @@ function limpiarFormulario() {
   pdv = null; tituloTocado = false; productoTocado = false;
   $('pdvElegido').innerHTML = '';
   ['q','errorProblema','personaContacto','numeroContacto','titulo','relato'].forEach(id => $(id).value = '');
-  ['grupo','producto','solucion','motivoCat','derivar'].forEach(id => $(id).selectedIndex = 0);
+  ['grupo','producto','solucion','motivoCat'].forEach(id => $(id).selectedIndex = 0);
   opciones($('motivoSub'), [], '— Subcategoría —');
   $('motivoSub').disabled = true;
   $('previo').innerHTML = '';
