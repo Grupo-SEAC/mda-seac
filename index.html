@@ -233,19 +233,21 @@ html.dark .mda-previo { background: #1e293b; border-color: #1e3a5f; }
         <div class="mda-field">
           <label for="solucion">Resolución</label>
           <select id="solucion"></select>
+          <div class="mda-hint">Cómo terminó la atención. Si todavía no está resuelto, dejá <b>Sin resolver aún</b>: el ticket queda abierto y lo actualizás en Zammad cuando se resuelva.</div>
         </div>
       </div>
 
       <div class="mda-field">
         <label for="causa">Causa <span class="req" id="causaReq" hidden>*</span></label>
         <select id="causa"></select>
-        <div class="mda-hint">Qué era realmente el problema. Obligatoria cuando el ticket se cierra.</div>
+        <div class="mda-hint">Qué era realmente el problema, no lo que dijo el cliente. Si no lo pudiste averiguar, elegí <b>Sin causa identificada</b>. Obligatoria cuando el ticket se cierra.</div>
       </div>
 
       <div class="mda-row">
         <div class="mda-field">
           <label for="motivoCat">Motivo <span class="req">*</span></label>
           <select id="motivoCat"></select>
+          <div class="mda-hint">Lo que el cliente dice que le pasa, aunque después la causa resulte otra.</div>
         </div>
         <div class="mda-field">
           <label for="motivoSub">&nbsp;</label>
@@ -326,7 +328,7 @@ const PRODUCTOS = ['Carga Virtual','Cobro Virtual','SUBE','Depósitos','Seac Pag
 // Resolucion: como termino el contacto. El campo en Zammad se sigue llamando
 // `solucion` (lo usan el puente con AppSheet y un Core Workflow).
 // Catalogo: proyecto Zammad, causa-resolucion-validacion.md
-const SOLUCIONES = ['Resuelto en la atención','Informado','Se indicó contactar a otra área',
+const SOLUCIONES = ['Resuelto en la atención','Informado',
   'Sin respuesta del cliente','No se pudo resolver','Duplicado / sin acción',
   'Pendiente del cliente','Escalado a Servicio Técnico','Derivado al comercial',
   'Escalado a proveedor'];
@@ -654,7 +656,7 @@ $('grupo').addEventListener('change', () => {
 // agente. Pero la regla se muestra: si no se ve, nadie entiende por que unos
 // tickets se cierran solos y otros no.
 const SOLUCIONES_QUE_CIERRAN = [
-  'Resuelto en la atención', 'Informado', 'Se indicó contactar a otra área',
+  'Resuelto en la atención', 'Informado',
   'Sin respuesta del cliente', 'No se pudo resolver', 'Duplicado / sin acción',
 ];
 
