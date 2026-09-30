@@ -247,7 +247,7 @@ html.dark .mda-previo { background: #1e293b; border-color: #1e3a5f; }
         <div class="mda-field">
           <label for="motivoCat">Motivo <span class="req">*</span></label>
           <select id="motivoCat"></select>
-          <div class="mda-hint">Lo que el cliente dice que le pasa, aunque después la causa resulte otra.</div>
+          <div class="mda-hint">Qué operación o producto tiene el problema. Confirmalo preguntando; no copies lo primero que dice el cliente.</div>
         </div>
         <div class="mda-field">
           <label for="motivoSub">&nbsp;</label>
@@ -344,25 +344,14 @@ const CAUSAS = ['Servicio caído o en mantenimiento','Falla de equipo o de conex
 // Arbol de motivos v2 (30/09/2026): lo que dice el cliente al abrir.
 // Salio de 10.841 chats de tawk.to. Ver arbol-motivos-v2-borrador.md
 const MOTIVOS = {
-  'Cobro de facturas y servicios': ['No puede cobrar una factura o servicio','Verificar un cobro o pedir comprobante',
-    'Consulta si se puede cobrar o cómo cobrar','Anular o devolver un cobro','Límite de cobro',
-    'Cobro no impactado en la empresa'],
-  'Punto de venta y cuenta corriente': ['Depósito no acreditado','Punto de venta inactivo o bloqueado',
-    'Saldo, descuentos y comisiones','Alta, baja o contratación del servicio',
-    'Saldo deudor o inhabilitado por deuda','Cómo depositar o datos bancarios'],
-  'Acceso al sistema': ['Clave incorrecta u olvidada','No puede ingresar al sistema','Usuario o clave bloqueada',
-    'Cambio de mail o datos de contacto','Clave de precarga de depósitos'],
-  'Equipos y servicio técnico': ['Posnet no funciona o no enciende','Pide técnico o cambio de equipo',
-    'Posnet sin conexión','No imprime tickets','PC, lector o terminal'],
-  'Billetera Resimple': ['Transferencia no acreditada en la billetera','Billetera bloqueada o sin acceso',
-    'No puede transferir o retirar fondos','Límite de la billetera','Alta, baja o datos de la billetera',
-    'Transferencia enviada por error'],
-  'Estado del servicio': ['Consulta si una empresa o servicio está caído','Consulta si el sistema está caído o lento',
-    'Horarios y feriados'],
-  'Cobro con débito, tarjeta y QR': ['Posnet de débito no responde o da error','No puede cobrar con QR',
-    'Pago con QR no acreditado','Cobro con tarjeta no acreditado o duplicado'],
-  'SUBE y recargas': ['Error al cargar SUBE','Límite de carga SUBE','No puede hacer una recarga de celular',
-    'Recarga no acreditada'],
+  'Cobro de facturas y servicios': ['No puede cobrar una factura o servicio','Verificar un cobro o pedir comprobante','Consulta si se puede cobrar o cómo cobrar','Anular o devolver un cobro','Cobro no impactado en la empresa'],
+  'Punto de venta y cuenta corriente': ['Depósito no acreditado','Punto de venta inactivo o bloqueado','Consulta o reclamo por saldo, descuentos o comisiones','Alta, baja o contratación del servicio','Cómo depositar o datos bancarios'],
+  'Acceso al sistema': ['No puede ingresar o necesita blanquear la clave','Cambio de mail o datos de contacto','Clave de precarga de depósitos'],
+  'Equipos y servicio técnico': ['Posnet no funciona, no enciende o no conecta','Pide técnico o cambio de equipo','No imprime tickets','PC, lector o terminal'],
+  'Billetera Resimple': ['Transferencia no acreditada en la billetera','No puede ingresar a la billetera','No puede transferir o retirar fondos','Alta, baja o datos de la billetera','Transferencia enviada por error'],
+  'Estado del servicio': ['Consulta si un servicio o el sistema está caído','Horarios y feriados'],
+  'Cobro con débito, tarjeta y QR': ['Posnet de débito no responde o da error','No puede cobrar con QR','Pago con QR no acreditado','Cobro con tarjeta no acreditado o duplicado'],
+  'SUBE y recargas': ['No puede cargar SUBE','No puede hacer una recarga de celular','Recarga no acreditada'],
   'Otros': ['Seguimiento de un reclamo','Otro'],
 };
 
