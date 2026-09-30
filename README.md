@@ -53,8 +53,13 @@ config.js no se toca porque no esta versionado.
 
 ## Mantenimiento
 
-Tres listas estan hardcodeadas en index.html y hay que actualizarlas a mano si
-cambian en Zammad: GRUPOS, PRODUCTOS, SOLUCIONES y MOTIVOS.
+Cinco listas estan hardcodeadas en index.html y hay que actualizarlas a mano si
+cambian en Zammad: GRUPOS, PRODUCTOS, SOLUCIONES, CAUSAS y MOTIVOS.
+
+SOLUCIONES es la lista del campo `solucion` de Zammad, que en pantalla se
+llama "Resolucion". SOLUCIONES_QUE_CIERRAN decide si el ticket se crea cerrado;
+n8n usa el estado que manda la app, asi que ese es el unico lugar donde vive
+esa regla.
 
 Verificar contra la base:
 

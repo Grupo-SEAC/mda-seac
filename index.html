@@ -231,9 +231,15 @@ html.dark .mda-previo { background: #1e293b; border-color: #1e3a5f; }
           <select id="producto"></select>
         </div>
         <div class="mda-field">
-          <label for="solucion">Solución</label>
+          <label for="solucion">Resolución</label>
           <select id="solucion"></select>
         </div>
+      </div>
+
+      <div class="mda-field">
+        <label for="causa">Causa <span class="req" id="causaReq" hidden>*</span></label>
+        <select id="causa"></select>
+        <div class="mda-hint">Qué era realmente el problema. Obligatoria cuando el ticket se cierra.</div>
       </div>
 
       <div class="mda-row">
@@ -317,16 +323,45 @@ const GRUPOS = [
 
 const PRODUCTOS = ['Carga Virtual','Cobro Virtual','SUBE','Depósitos','Seac Pagos','QR Max','Billetera Resimple','CV Pagos'];
 
-const SOLUCIONES = ['Resuelto en el momento','Configuración aplicada','Reproceso / reintento',
-  'Capacitación al cliente','Escalado a Servicio Técnico','Derivado al comercial',
-  'Escalado a proveedor','Sin solución / cliente desiste','Duplicado / sin acción'];
+// Resolucion: como termino el contacto. El campo en Zammad se sigue llamando
+// `solucion` (lo usan el puente con AppSheet y un Core Workflow).
+// Catalogo: proyecto Zammad, causa-resolucion-validacion.md
+const SOLUCIONES = ['Resuelto en la atención','Informado','Se indicó contactar a otra área',
+  'Sin respuesta del cliente','No se pudo resolver','Duplicado / sin acción',
+  'Pendiente del cliente','Escalado a Servicio Técnico','Derivado al comercial',
+  'Escalado a proveedor'];
 
+// Causa: que era realmente el problema. Se elige al cerrar.
+const CAUSAS = ['Servicio caído o en mantenimiento','Falla de equipo o de conexión',
+  'Usuario, clave o permisos','Bloqueo o validación de identidad','Límite alcanzado',
+  'Saldo, deuda o cargos en la cuenta','Operación duplicada, no registrada o a anular',
+  'Acreditación en plazo normal','Error de operación del cliente',
+  'Gestión administrativa pendiente','No había problema (consulta)',
+  'Sin causa identificada','Otro'];
+
+// Arbol de motivos v2 (30/09/2026): lo que dice el cliente al abrir.
+// Salio de 10.841 chats de tawk.to. Ver arbol-motivos-v2-borrador.md
 const MOTIVOS = {
-  'Transaccional':     ['Cobro o transaccion fallida','Pago no acreditado','Carga y recargas','Consulta de saldo'],
-  'Equipamiento':      ['Equipo POS','Impresion de tickets','Instalacion','Cambio de equipo','Retiro'],
-  'Acceso y sistemas': ['Acceso y contrasenas','Sistema web o app','API e integraciones'],
-  'Administrativo':    ['Alta de punto de venta','Estado de la cuenta','Facturacion'],
-  'Otro':              [],
+  'Cobro de facturas y servicios': ['No puede cobrar una factura o servicio','Verificar un cobro o pedir comprobante',
+    'Consulta si se puede cobrar o cómo cobrar','Anular o devolver un cobro','Límite de cobro',
+    'Cobro no impactado en la empresa'],
+  'Punto de venta y cuenta corriente': ['Depósito no acreditado','Punto de venta inactivo o bloqueado',
+    'Saldo, descuentos y comisiones','Alta, baja o contratación del servicio',
+    'Saldo deudor o inhabilitado por deuda','Cómo depositar o datos bancarios'],
+  'Acceso al sistema': ['Clave incorrecta u olvidada','No puede ingresar al sistema','Usuario o clave bloqueada',
+    'Cambio de mail o datos de contacto','Clave de precarga de depósitos'],
+  'Equipos y servicio técnico': ['Posnet no funciona o no enciende','Pide técnico o cambio de equipo',
+    'Posnet sin conexión','No imprime tickets','PC, lector o terminal'],
+  'Billetera Resimple': ['Transferencia no acreditada en la billetera','Billetera bloqueada o sin acceso',
+    'No puede transferir o retirar fondos','Límite de la billetera','Alta, baja o datos de la billetera',
+    'Transferencia enviada por error'],
+  'Estado del servicio': ['Consulta si una empresa o servicio está caído','Consulta si el sistema está caído o lento',
+    'Horarios y feriados'],
+  'Cobro con débito, tarjeta y QR': ['Posnet de débito no responde o da error','No puede cobrar con QR',
+    'Pago con QR no acreditado','Cobro con tarjeta no acreditado o duplicado'],
+  'SUBE y recargas': ['Error al cargar SUBE','Límite de carga SUBE','No puede hacer una recarga de celular',
+    'Recarga no acreditada'],
+  'Otros': ['Seguimiento de un reclamo','Otro'],
 };
 
 // ============================================================================
@@ -361,6 +396,7 @@ function opcionesGrupo(sel) {
 opcionesGrupo($('grupo'));
 opciones($('producto'), PRODUCTOS, '— Sin especificar —');
 opciones($('solucion'), SOLUCIONES, '— Sin resolver aún —');
+opciones($('causa'), CAUSAS, '— Elegir causa —');
 opciones($('motivoCat'), Object.keys(MOTIVOS), '— Categoría —');
 opciones($('motivoSub'), [], '— Subcategoría —');
 
@@ -581,10 +617,13 @@ $('motivoCat').addEventListener('change', () => {
 });
 $('motivoSub').addEventListener('change', () => { autoTitulo(); validar(); });
 
+// Si la rama tiene hojas, hay que elegir una: la rama sola no dice nada
+// que sirva para medir.
 function motivoValor() {
   const cat = $('motivoCat').value;
   if (!cat) return '';
   const sub = $('motivoSub').value;
+  if ((MOTIVOS[cat] || []).length && !sub) return '';
   return sub ? cat + '::' + sub : cat;
 }
 
@@ -615,8 +654,8 @@ $('grupo').addEventListener('change', () => {
 // agente. Pero la regla se muestra: si no se ve, nadie entiende por que unos
 // tickets se cierran solos y otros no.
 const SOLUCIONES_QUE_CIERRAN = [
-  'Resuelto en el momento', 'Configuración aplicada', 'Reproceso / reintento',
-  'Capacitación al cliente', 'Sin solución / cliente desiste', 'Duplicado / sin acción',
+  'Resuelto en la atención', 'Informado', 'Se indicó contactar a otra área',
+  'Sin respuesta del cliente', 'No se pudo resolver', 'Duplicado / sin acción',
 ];
 
 function comercialValido(c) {
@@ -672,6 +711,13 @@ function pintarPrevio() {
 
 ['solucion','grupo'].forEach(id => $(id).addEventListener('change', pintarPrevio));
 
+// La causa es obligatoria solo si el ticket se crea cerrado. Si queda abierto,
+// se completa en Zammad al cerrarlo (ahi la exige un Core Workflow).
+function causaObligatoria() { return plan().estado === 'closed'; }
+function pintarCausa() { $('causaReq').hidden = !causaObligatoria(); validar(); }
+$('solucion').addEventListener('change', pintarCausa);
+$('causa').addEventListener('change', validar);
+
 // --- validacion -------------------------------------------------------------
 ['grupo','errorProblema','personaContacto','titulo'].forEach(id =>
   $(id).addEventListener('input', validar));
@@ -681,10 +727,11 @@ function faltantes() {
   if (!agenteActual())               f.push('tu usuario de agente');
   if (!pdv)                          f.push('el PDV');
   if (!$('grupo').value)             f.push('el grupo');
-  if (!motivoValor())                f.push('el motivo');
+  if (!motivoValor())                f.push($('motivoCat').value ? 'el detalle del motivo' : 'el motivo');
   if (!$('errorProblema').value.trim())   f.push('el error o problema');
   if (!$('personaContacto').value.trim()) f.push('la persona de contacto');
   if (!$('titulo').value.trim())     f.push('el título');
+  if (causaObligatoria() && !$('causa').value) f.push('la causa');
   return f;
 }
 
@@ -718,6 +765,7 @@ async function crear() {
     motivo:           motivoValor(),
     error_problema:   $('errorProblema').value.trim(),
     solucion:         $('solucion').value,
+    causa:            $('causa').value,
     persona_contacto: $('personaContacto').value.trim(),
     numero_contacto:  $('numeroContacto').value.trim(),
     relato:           $('relato').value.trim() || $('errorProblema').value.trim(),
@@ -753,7 +801,8 @@ function limpiarFormulario() {
   pdv = null; tituloTocado = false; productoTocado = false;
   $('pdvElegido').innerHTML = '';
   ['q','errorProblema','personaContacto','numeroContacto','titulo','relato'].forEach(id => $(id).value = '');
-  ['grupo','producto','solucion','motivoCat'].forEach(id => $(id).selectedIndex = 0);
+  ['grupo','producto','solucion','causa','motivoCat'].forEach(id => $(id).selectedIndex = 0);
+  $('causaReq').hidden = true;
   opciones($('motivoSub'), [], '— Subcategoría —');
   $('motivoSub').disabled = true;
   $('previo').innerHTML = '';
