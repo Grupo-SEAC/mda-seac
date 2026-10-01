@@ -491,12 +491,17 @@ const CAMPOS_PDV = [
     ['numero_cliente', 'Nº de cliente'], ['subcliente', 'Subcliente'],
     ['cuit_subcliente', 'CUIT'], ['grupo_economico', 'Grupo económico'],
     ['id_sucursal', 'Sucursal'], ['estado_cliente', 'Estado cliente'],
-    ['estado_subcliente', 'Estado subcliente'],
+    ['estado_subcliente', 'Estado subcliente'], ['habilitado', 'Habilitado'],
+    ['firmo_tyc', 'Firmó términos y condiciones'],
   ]],
   ['Comercial', [
     ['comercial', 'Comercial'], ['tipo_cliente', 'Tipo de cliente'],
     ['canal', 'Canal'], ['rubro', 'Rubro'],
     ['grupo_productos', 'Grupo de productos'], ['es_premium', 'Premium', 'bool'],
+  ]],
+  ['QR y billetera', [
+    ['qr', 'QR'], ['qr_max', 'QR MAX'], ['qr_max_modo', 'Modo QR MAX'],
+    ['cvu_alias', 'CVU / alias'],
   ]],
   ['Equipamiento', [
     ['pos', 'POS'], ['pos_payway', 'POS Payway'], ['pinpad', 'Pinpad'],
@@ -514,7 +519,7 @@ const CAMPOS_PDV = [
   ]],
   ['Ubicación', [
     ['piso', 'Piso'], ['partido_barrio', 'Partido / barrio'], ['cp', 'CP'],
-    ['direccion_google', 'Dirección Google'],
+    ['zona_logistica', 'Zona logística'], ['direccion_google', 'Dirección Google'],
   ]],
   ['Organización en Zammad', [
     ['nota', 'Nota'], ['shared', 'Organización compartida', 'bool'],
