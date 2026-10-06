@@ -100,6 +100,8 @@ html.dark .mda-field input, html.dark .mda-field select, html.dark .mda-field te
 .mda-hint { font-size: 11.5px; color: var(--mda-ink-soft); margin-top: 5px; }
 
 .mda-row { display: grid; grid-template-columns: 1fr; gap: 0 16px; }
+.mda-check { display: flex; gap: 8px; align-items: center; font-size: 13px; font-weight: 500; margin-top: 2px; cursor: pointer; }
+.mda-check input { width: auto; margin: 0; }
 @media (min-width: 620px) { .mda-row { grid-template-columns: 1fr 1fr; } }
 
 .mda-results { margin-top: 10px; max-height: 340px; overflow-y: auto; border-radius: var(--mda-radius); }
@@ -271,6 +273,13 @@ html.dark .mda-previo { background: #1e293b; border-color: #1e3a5f; }
         </div>
       </div>
 
+      <div class="mda-field" id="bloqueContacto">
+        <label for="emailContacto">Correo de contacto</label>
+        <input type="email" id="emailContacto" autocomplete="off" placeholder="Opcional">
+        <label class="mda-check" style="margin-top:10px"><input type="checkbox" id="guardarContacto"> Guardar estos datos como contacto del PDV</label>
+        <div class="mda-hint">Quedan en la ficha del PDV para la próxima vez que llame. El padrón no los pisa.</div>
+      </div>
+
       <div class="mda-field">
         <label for="titulo">Título del ticket <span class="req">*</span></label>
         <input type="text" id="titulo" autocomplete="off">
@@ -300,6 +309,7 @@ const CONFIG = Object.assign({
   BASE:        'https://n8n.gruposeac.online/webhook',
   BUSCAR:      'zammad-buscar-pdv',
   CREAR:       'zammad-crear-ticket',
+  CONTACTO:    'zammad-actualizar-contacto',
   AUTH_HEADER: 'X-MDA-Key',
   AUTH_VALUE:  '',
   ZAMMAD:      'https://portalgestion.gruposeac.online',
@@ -494,6 +504,13 @@ const CAMPOS_PDV = [
     ['estado_subcliente', 'Estado subcliente'], ['habilitado', 'Habilitado'],
     ['firmo_tyc', 'Firmó términos y condiciones'],
   ]],
+  ['Contacto cargado por la mesa', [
+    ['contacto_mesa', 'Contacto'], ['telefono_mesa', 'Teléfono'], ['email_mesa', 'Correo'],
+    ['contacto_mesa_actualizado', 'Actualizado'],
+  ]],
+  ['Último contacto en un ticket', [
+    ['ultimo_contacto', 'Contacto'], ['ultimo_numero', 'Teléfono'], ['ultimo_contacto_fecha', 'Fecha'],
+  ]],
   ['Comercial', [
     ['comercial', 'Comercial'], ['tipo_cliente', 'Tipo de cliente'],
     ['canal', 'Canal'], ['rubro', 'Rubro'],
@@ -573,6 +590,8 @@ function elegir(o) {
       '<div class="razon">' + escapar(o.razon_social || o.nombre_fantasia || '') + '</div>' +
       '<div class="dir">' + escapar([o.direccion, o.altura, o.localidad, o.provincia].filter(Boolean).join(' ')) + '</div>' +
       (badges ? '<div class="mda-badges">' + badges + '</div>' : '') +
+      (valorLegible(o.contacto_mesa) || valorLegible(o.telefono_mesa)
+        ? '<div class="mda-kv"><b>Contacto (mesa)</b><span>' + escapar([o.contacto_mesa, o.telefono_mesa, o.email_mesa].filter(valorLegible).join(' · ')) + '</span></div>' : '') +
       (valorLegible(o.contacto)  ? '<div class="mda-kv"><b>Contacto</b><span>' + escapar(o.contacto) + '</span></div>' : '') +
       (valorLegible(o.telefono)  ? '<div class="mda-kv"><b>Teléfono</b><span>' + escapar(o.telefono) + '</span></div>' : '') +
       (valorLegible(o.email_pdv) ? '<div class="mda-kv"><b>Correo</b><span>' + escapar(o.email_pdv) + '</span></div>' : '') +
@@ -594,8 +613,13 @@ function elegir(o) {
     pdv = null; $('pdvElegido').innerHTML = ''; $('q').focus(); autoTitulo(); validar();
   });
 
-  if (!$('personaContacto').value && o.contacto) $('personaContacto').value = o.contacto;
-  if (!$('numeroContacto').value && o.telefono)  $('numeroContacto').value = o.telefono;
+  // Precarga: lo que cargo la mesa, si no el ultimo ticket, si no el padron.
+  const primero = (...v) => v.find(x => valorLegible(x)) || '';
+  if (!$('personaContacto').value) $('personaContacto').value = primero(o.contacto_mesa, o.ultimo_contacto, o.contacto);
+  if (!$('numeroContacto').value)  $('numeroContacto').value  = primero(o.telefono_mesa, o.ultimo_numero, o.telefono);
+  if (!$('emailContacto').value)   $('emailContacto').value   = primero(o.email_mesa);
+  $('guardarContacto').checked = false;
+  $('bloqueContacto').hidden = !pdvIdentificado(o);
 
   autoTitulo();
   pintarPrevio();
@@ -717,6 +741,8 @@ $('causa').addEventListener('change', validar);
 // --- validacion -------------------------------------------------------------
 ['grupo','errorProblema','personaContacto','titulo'].forEach(id =>
   $(id).addEventListener('input', validar));
+$('emailContacto').addEventListener('input', validar);
+$('guardarContacto').addEventListener('change', validar);
 
 function faltantes() {
   const f = [];
@@ -728,6 +754,8 @@ function faltantes() {
   if (!$('personaContacto').value.trim()) f.push('la persona de contacto');
   if (!$('titulo').value.trim())     f.push('el título');
   if (causaObligatoria() && !$('causa').value) f.push('la causa');
+  if ($('guardarContacto').checked && $('emailContacto').value.trim() && !correoValido($('emailContacto').value.trim()))
+    f.push('un correo de contacto válido');
   return f;
 }
 
@@ -741,6 +769,31 @@ function validar() {
 
 // --- creacion ---------------------------------------------------------------
 $('btnCrear').addEventListener('click', crear);
+
+// El PDV "no identificado" es una organizacion generica: no se le guarda contacto.
+function pdvIdentificado(o) {
+  return !!(o && o.organization_id && o.numero_pdv &&
+    !/no identificado/i.test([o.razon_social, o.nombre_fantasia].join(' ')));
+}
+
+function correoValido(c) { return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c); }
+
+// Guarda el contacto en la organizacion. Si falla, el ticket ya esta creado:
+// se avisa y listo, no se reintenta solo.
+async function guardarContacto(datos) {
+  try {
+    const r = await fetch(CONFIG.BASE + '/' + CONFIG.CONTACTO, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', [CONFIG.AUTH_HEADER]: CONFIG.AUTH_VALUE },
+      body: JSON.stringify(datos),
+    });
+    const res = await r.json().catch(() => ({}));
+    if (!r.ok || res.ok === false) throw new Error(res.error || ('respondió ' + r.status));
+    return '<br>Contacto del PDV actualizado.';
+  } catch (e) {
+    return '<br><b>Ojo:</b> el ticket se creó, pero no se pudo guardar el contacto del PDV (' + escapar(e.message) + ').';
+  }
+}
 
 async function crear() {
   if (enviando || faltantes().length) return;
@@ -780,9 +833,20 @@ async function crear() {
     }
     const num = datos.number || '';
     const id  = datos.ticket_id || '';
+    let extra = '';
+    if ($('guardarContacto').checked && pdvIdentificado(pdv)) {
+      extra = await guardarContacto({
+        organization_id: pdv.organization_id,
+        contacto: cuerpo.persona_contacto,
+        telefono: cuerpo.numero_contacto,
+        email:    $('emailContacto').value.trim(),
+        agente:   cuerpo.agente,
+      });
+    }
     mostrar('ok',
       '<b>Ticket #' + escapar(num) + ' creado.</b> ' +
-      (id ? '<a href="' + CONFIG.ZAMMAD + '/#ticket/zoom/' + encodeURIComponent(id) + '" target="_blank" rel="noopener">Abrirlo en Zammad</a>' : ''));
+      (id ? '<a href="' + CONFIG.ZAMMAD + '/#ticket/zoom/' + encodeURIComponent(id) + '" target="_blank" rel="noopener">Abrirlo en Zammad</a>' : '') +
+      extra);
     limpiarFormulario();
   } catch (e) {
     mostrar('err', '<b>No se pudo crear el ticket.</b><br>' + escapar(e.message) +
@@ -796,7 +860,9 @@ async function crear() {
 function limpiarFormulario() {
   pdv = null; tituloTocado = false; productoTocado = false;
   $('pdvElegido').innerHTML = '';
-  ['q','errorProblema','personaContacto','numeroContacto','titulo','relato'].forEach(id => $(id).value = '');
+  ['q','errorProblema','personaContacto','numeroContacto','emailContacto','titulo','relato'].forEach(id => $(id).value = '');
+  $('guardarContacto').checked = false;
+  $('bloqueContacto').hidden = false;
   ['grupo','producto','solucion','causa','motivoCat'].forEach(id => $(id).selectedIndex = 0);
   $('causaReq').hidden = true;
   opciones($('motivoSub'), [], '— Subcategoría —');
