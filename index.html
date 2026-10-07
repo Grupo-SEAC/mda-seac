@@ -277,7 +277,7 @@ html.dark .mda-previo { background: #1e293b; border-color: #1e3a5f; }
         <label for="emailContacto">Correo de contacto</label>
         <input type="email" id="emailContacto" autocomplete="off" placeholder="Opcional">
         <label class="mda-check" style="margin-top:10px"><input type="checkbox" id="guardarContacto"> Guardar estos datos como contacto del PDV</label>
-        <div class="mda-hint">Quedan en la ficha del PDV para la próxima vez que llame. El padrón no los pisa.</div>
+        <div class="mda-hint">Si cargás un correo, el ticket queda a nombre de esa persona y las respuestas por mail le llegan a ella. Tildando la casilla, los datos quedan en la ficha del PDV para la próxima vez.</div>
       </div>
 
       <div class="mda-field">
@@ -310,6 +310,7 @@ const CONFIG = Object.assign({
   BUSCAR:      'zammad-buscar-pdv',
   CREAR:       'zammad-crear-ticket',
   CONTACTO:    'zammad-actualizar-contacto',
+  CLIENTE:     'zammad-resolver-cliente',
   AUTH_HEADER: 'X-MDA-Key',
   AUTH_VALUE:  '',
   ZAMMAD:      'https://portalgestion.gruposeac.online',
@@ -754,7 +755,7 @@ function faltantes() {
   if (!$('personaContacto').value.trim()) f.push('la persona de contacto');
   if (!$('titulo').value.trim())     f.push('el título');
   if (causaObligatoria() && !$('causa').value) f.push('la causa');
-  if ($('guardarContacto').checked && $('emailContacto').value.trim() && !correoValido($('emailContacto').value.trim()))
+  if ($('emailContacto').value.trim() && !correoValido($('emailContacto').value.trim()))
     f.push('un correo de contacto válido');
   return f;
 }
@@ -795,6 +796,22 @@ async function guardarContacto(datos) {
   }
 }
 
+// Busca o crea en Zammad el cliente con ese correo y le asocia el PDV.
+async function resolverCliente(datos) {
+  try {
+    const r = await fetch(CONFIG.BASE + '/' + CONFIG.CLIENTE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', [CONFIG.AUTH_HEADER]: CONFIG.AUTH_VALUE },
+      body: JSON.stringify(datos),
+    });
+    const res = await r.json().catch(() => ({}));
+    if (!r.ok || res.ok === false || !res.customer_id) return { ok: false, error: res.error || ('respondió ' + r.status) };
+    return { ok: true, customer_id: res.customer_id };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
 async function crear() {
   if (enviando || faltantes().length) return;
   enviando = true; limpiarMensaje();
@@ -802,13 +819,31 @@ async function crear() {
   $('btnCrear').innerHTML = '<span class="spinner"></span> Creando…';
 
   const p = plan();
+
+  // Con correo de contacto, el cliente del ticket es esa persona (asi el mail
+  // va y vuelve). Si no se puede resolver, queda el usuario del PDV.
+  let clienteId = pdv.customer_id ?? null;
+  let avisoCliente = '';
+  const correo = $('emailContacto').value.trim();
+  if (correo && pdvIdentificado(pdv)) {
+    const rc = await resolverCliente({
+      organization_id: pdv.organization_id,
+      email: correo,
+      nombre: $('personaContacto').value.trim(),
+      telefono: $('numeroContacto').value.trim(),
+      agente: agenteActual(),
+    });
+    if (rc.ok) { clienteId = rc.customer_id; avisoCliente = '<br>Las respuestas por mail le llegan a ' + escapar(correo) + '.'; }
+    else { avisoCliente = '<br><b>Ojo:</b> no se pudo asignar el ticket a ' + escapar(correo) + ' (' + escapar(rc.error) + '). Quedó a nombre del PDV.'; }
+  }
+
   const cuerpo = {
     title:            $('titulo').value.trim(),
     group:            p.grupo,
     estado:           p.estado,
     derivar:          p.derivar,
     comercial:        p.comercial,
-    customer_id:      pdv.customer_id ?? null,
+    customer_id:      clienteId,
     organization_id:  pdv.organization_id,
     producto:         $('producto').value,
     motivo:           motivoValor(),
@@ -846,7 +881,7 @@ async function crear() {
     mostrar('ok',
       '<b>Ticket #' + escapar(num) + ' creado.</b> ' +
       (id ? '<a href="' + CONFIG.ZAMMAD + '/#ticket/zoom/' + encodeURIComponent(id) + '" target="_blank" rel="noopener">Abrirlo en Zammad</a>' : '') +
-      extra);
+      avisoCliente + extra);
     limpiarFormulario();
   } catch (e) {
     mostrar('err', '<b>No se pudo crear el ticket.</b><br>' + escapar(e.message) +
