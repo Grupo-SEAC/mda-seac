@@ -227,6 +227,12 @@ html.dark .mda-previo { background: #1e293b; border-color: #1e3a5f; }
         <select id="grupo"></select>
       </div>
 
+      <div class="mda-field">
+        <label for="respuesta">Respuesta aplicada <span class="req" id="respuestaReq" hidden>*</span></label>
+        <select id="respuesta"></select>
+        <div class="mda-hint">Qué le respondiste o hiciste al cliente. Si la Resolución está vacía, se completa sola (la podés cambiar). Obligatoria cuando el ticket se cierra. Los códigos son los de la base de conocimiento.</div>
+      </div>
+
       <div class="mda-row">
         <div class="mda-field">
           <label for="producto">Producto</label>
@@ -352,6 +358,61 @@ const CAUSAS = ['Servicio caído o en mantenimiento','Falla de equipo o de conex
   'Gestión administrativa pendiente','No había problema (consulta)',
   'Sin causa identificada','Otro'];
 
+// Respuesta aplicada: que le respondio la mesa al cliente (catalogo de 49).
+// [grupo, opcion, Resolucion que se completa sola si esta vacia]. Ver catalogo-respuestas-mesa.md
+// El valor que va a Zammad es 'grupo::opcion' (campo tree_select `respuesta`); 'Otro' va solo.
+const RESPUESTAS = [
+  ["Gestión de la mesa", "GES01 · Enviar clave nueva al mail registrado", "Resuelto en la atención"],
+  ["Gestión de la mesa", "GES02 · Cambiar mail o dato de contacto registrado", "Resuelto en la atención"],
+  ["Gestión de la mesa", "GES03 · Activar o desbloquear punto de venta o billetera", "Resuelto en la atención"],
+  ["Gestión de la mesa", "GES04 · Acreditar, corregir o anular un depósito", "Resuelto en la atención"],
+  ["Gestión de la mesa", "GES06 · Reponer o pedir stock de pines", "Resuelto en la atención"],
+  ["Gestión de la mesa", "GES07 · Ajustar límite o purse en el sistema", "Resuelto en la atención"],
+  ["Gestión de la mesa", "GES05 · Realizar otra gestión en el sistema", "Resuelto en la atención"],
+  ["Pasos al cliente", "PAS01 · Indicar reinicio o configuración del equipo", "Resuelto en la atención"],
+  ["Pasos al cliente", "PAS09 · Indicar pasos para ingresar al sistema", "Resuelto en la atención"],
+  ["Pasos al cliente", "PAS02 · Indicar pasos para generar clave PV desde SC", "Resuelto en la atención"],
+  ["Pasos al cliente", "PAS10 · Indicar pasos en la app de la billetera", "Resuelto en la atención"],
+  ["Pasos al cliente", "PAS03 · Confirmar que se cobra e indicar cómo buscarla", "Resuelto en la atención"],
+  ["Pasos al cliente", "PAS04 · Indicar cómo anular desde el sistema", "Resuelto en la atención"],
+  ["Pasos al cliente", "PAS05 · Indicar confirmar o cancelar operación pendiente", "Resuelto en la atención"],
+  ["Pasos al cliente", "PAS06 · Indicar cómo reimprimir un comprobante", "Resuelto en la atención"],
+  ["Pasos al cliente", "PAS07 · Explicar funcionamiento o enviar instructivo", "Informado"],
+  ["Pasos al cliente", "PAS08 · Indicar reintentar o esperar unos minutos", "Informado"],
+  ["Información", "INF01 · Informar caída o falla ya reportada", "Informado"],
+  ["Información", "INF02 · Informar que el servicio funciona con normalidad", "Informado"],
+  ["Información", "INF03 · Confirmar que la operación se realizó o acreditó", "Informado"],
+  ["Información", "INF04 · Informar que la operación no se realizó", "Informado"],
+  ["Información", "INF05 · Informar plazo de acreditación o gestión", "Informado"],
+  ["Información", "INF14 · Informar reintegro del banco por cobro con tarjeta", "Informado"],
+  ["Información", "INF06 · Informar que la operación no es anulable ni reversible", "Informado"],
+  ["Información", "INF07 · Informar que el producto o servicio no está disponible", "Informado"],
+  ["Información", "INF08 · Informar estado de un reclamo o incidente", "Informado"],
+  ["Información", "INF09 · Informar datos bancarios y cómo depositar", "Informado"],
+  ["Información", "INF10 · Explicar saldo, descuentos, cargos o deuda", "Informado"],
+  ["Información", "INF11 · Informar cronograma de feriados y horarios", "Informado"],
+  ["Información", "INF12 · Informar dato registrado o contacto de otra área", "Informado"],
+  ["Información", "INF13 · Informar límite de operación y cómo ampliarlo", "Informado"],
+  ["Derivación", "DER01 · Generar incidente y derivar a Servicio Técnico", "Escalado a Servicio Técnico"],
+  ["Derivación", "DER04 · Gestionar reemplazo de equipo", "Escalado a Servicio Técnico"],
+  ["Derivación", "DER02 · Derivar a otra área de SEAC", "Informado"],
+  ["Derivación", "DER03 · Tomar datos para alta comercial", "Derivado al comercial"],
+  ["Contactar a otra área", "CON01 · Indicar enviar mail a otra área con datos", "Informado"],
+  ["Contactar a otra área", "CON04 · Indicar pedir desbloqueo de billetera por mail", "Informado"],
+  ["Contactar a otra área", "CON05 · Indicar pedir baja o devolución de fondos por mail", "Informado"],
+  ["Contactar a otra área", "CON06 · Indicar pedir aumento de límite por mail", "Informado"],
+  ["Contactar a otra área", "CON02 · Indicar contactar al ejecutivo o distribuidor", "Derivado al comercial"],
+  ["Contactar a otra área", "CON07 · Indicar pedir la clave al distribuidor", "Derivado al comercial"],
+  ["Contactar a otra área", "CON08 · Indicar pedir insumos o instalación", "Informado"],
+  ["Contactar a otra área", "CON03 · Indicar reclamar a la empresa o al banco", "Informado"],
+  ["Pedido de datos", "PED01 · Pedir datos, captura o comprobante", "Pendiente del cliente"],
+  ["Pedido de datos", "PED02 · Pedir comprobante de depósito por WhatsApp", "Pendiente del cliente"],
+  ["Sin acción", "SIN01 · Sin acción: el cliente no respondió", "Sin respuesta del cliente"],
+  ["Sin acción", "SIN02 · Sin acción útil de la mesa", "No se pudo resolver"],
+  ["Sin acción", "SIN03 · Sin acción: se resolvió solo", "Duplicado / sin acción"],
+  [null, "OTRO · Otro", null],
+];
+
 // Arbol de motivos v2 (30/09/2026): lo que dice el cliente al abrir.
 // Salio de 10.841 chats de tawk.to. Ver arbol-motivos-v2-borrador.md
 const MOTIVOS = {
@@ -399,6 +460,21 @@ opcionesGrupo($('grupo'));
 opciones($('producto'), PRODUCTOS, '— Sin especificar —');
 opciones($('solucion'), SOLUCIONES, '— Sin resolver aún —');
 opciones($('causa'), CAUSAS, '— Elegir causa —');
+const valorRespuesta = ([g, op]) => g ? g + '::' + op : op;
+(function opcionesRespuesta(sel) {
+  sel.innerHTML = '';
+  const o = document.createElement('option');
+  o.value = ''; o.textContent = '— Elegir respuesta —';
+  sel.appendChild(o);
+  let grupo = null, og = null;
+  RESPUESTAS.forEach(r => {
+    const el = document.createElement('option');
+    el.value = valorRespuesta(r); el.textContent = r[1];
+    if (!r[0]) { sel.appendChild(el); return; }
+    if (r[0] !== grupo) { og = document.createElement('optgroup'); og.label = r[0]; sel.appendChild(og); grupo = r[0]; }
+    og.appendChild(el);
+  });
+})($('respuesta'));
 opciones($('motivoCat'), Object.keys(MOTIVOS), '— Categoría —');
 opciones($('motivoSub'), [], '— Subcategoría —');
 
@@ -735,9 +811,24 @@ function pintarPrevio() {
 // La causa es obligatoria solo si el ticket se crea cerrado. Si queda abierto,
 // se completa en Zammad al cerrarlo (ahi la exige un Core Workflow).
 function causaObligatoria() { return plan().estado === 'closed'; }
-function pintarCausa() { $('causaReq').hidden = !causaObligatoria(); validar(); }
+function pintarCausa() {
+  $('causaReq').hidden = !causaObligatoria();
+  $('respuestaReq').hidden = !causaObligatoria();
+  validar();
+}
 $('solucion').addEventListener('change', pintarCausa);
 $('causa').addEventListener('change', validar);
+
+// Respuesta aplicada: si la Resolucion esta vacia, la completa con la tipica de
+// esa respuesta (el agente la puede cambiar). En Zammad lo hace un Core Workflow.
+$('respuesta').addEventListener('change', () => {
+  const r = RESPUESTAS.find(x => valorRespuesta(x) === $('respuesta').value);
+  if (r && r[2] && !$('solucion').value) {
+    $('solucion').value = r[2];
+    $('solucion').dispatchEvent(new Event('change'));
+  }
+  validar();
+});
 
 // --- validacion -------------------------------------------------------------
 ['grupo','errorProblema','personaContacto','titulo'].forEach(id =>
@@ -755,6 +846,7 @@ function faltantes() {
   if (!$('personaContacto').value.trim()) f.push('la persona de contacto');
   if (!$('titulo').value.trim())     f.push('el título');
   if (causaObligatoria() && !$('causa').value) f.push('la causa');
+  if (causaObligatoria() && !$('respuesta').value) f.push('la respuesta aplicada');
   if ($('emailContacto').value.trim() && !correoValido($('emailContacto').value.trim()))
     f.push('un correo de contacto válido');
   return f;
@@ -850,6 +942,7 @@ async function crear() {
     error_problema:   $('errorProblema').value.trim(),
     solucion:         $('solucion').value,
     causa:            $('causa').value,
+    respuesta:        $('respuesta').value,
     persona_contacto: $('personaContacto').value.trim(),
     numero_contacto:  $('numeroContacto').value.trim(),
     relato:           $('relato').value.trim() || $('errorProblema').value.trim(),
@@ -898,8 +991,9 @@ function limpiarFormulario() {
   ['q','errorProblema','personaContacto','numeroContacto','emailContacto','titulo','relato'].forEach(id => $(id).value = '');
   $('guardarContacto').checked = false;
   $('bloqueContacto').hidden = false;
-  ['grupo','producto','solucion','causa','motivoCat'].forEach(id => $(id).selectedIndex = 0);
+  ['grupo','producto','solucion','causa','respuesta','motivoCat'].forEach(id => $(id).selectedIndex = 0);
   $('causaReq').hidden = true;
+  $('respuestaReq').hidden = true;
   opciones($('motivoSub'), [], '— Subcategoría —');
   $('motivoSub').disabled = true;
   $('previo').innerHTML = '';
