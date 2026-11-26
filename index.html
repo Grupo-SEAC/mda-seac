@@ -699,7 +699,7 @@ function elegir(o) {
   const correoPadron = /@(seac\.com\.ar|resimple\.com\.ar|pdv\.seac\.local)$/i.test(String(o.email_pdv || '').trim()) ? '' : o.email_pdv;
   if (!$('emailContacto').value)   $('emailContacto').value   = primero(o.email_mesa, correoPadron);
   $('guardarContacto').checked = false;
-  $('sinCorreo').checked = false; $('emailContacto').disabled = false;
+  $('sinCorreo').checked = false; $('emailContacto').disabled = false; $('emailContacto').placeholder = 'nombre@dominio.com'; delete $('emailContacto').dataset.previo;
   $('bloqueContacto').hidden = !pdvIdentificado(o);
 
   autoTitulo();
@@ -839,8 +839,16 @@ $('respuesta').addEventListener('change', () => {
   $(id).addEventListener('input', validar));
 $('emailContacto').addEventListener('input', validar);
 $('guardarContacto').addEventListener('change', validar);
+// Al tildar "no tiene correo" se vacia el campo (y se guarda lo que habia por si lo destildan).
 $('sinCorreo').addEventListener('change', () => {
-  $('emailContacto').disabled = $('sinCorreo').checked;
+  const e = $('emailContacto');
+  if ($('sinCorreo').checked) {
+    e.dataset.previo = e.value; e.value = ''; e.placeholder = 'Sin correo: el ticket queda a nombre del PDV';
+  } else {
+    if (!e.value && e.dataset.previo) e.value = e.dataset.previo;
+    e.placeholder = 'nombre@dominio.com';
+  }
+  e.disabled = $('sinCorreo').checked;
   validar();
 });
 
@@ -1014,7 +1022,7 @@ function limpiarFormulario() {
   $('pdvElegido').innerHTML = '';
   ['q','errorProblema','personaContacto','numeroContacto','emailContacto','titulo','relato'].forEach(id => $(id).value = '');
   $('guardarContacto').checked = false;
-  $('sinCorreo').checked = false; $('emailContacto').disabled = false;
+  $('sinCorreo').checked = false; $('emailContacto').disabled = false; $('emailContacto').placeholder = 'nombre@dominio.com'; delete $('emailContacto').dataset.previo;
   $('bloqueContacto').hidden = false;
   ['grupo','producto','solucion','causa','respuesta','motivoCat'].forEach(id => $(id).selectedIndex = 0);
   $('causaReq').hidden = true;
