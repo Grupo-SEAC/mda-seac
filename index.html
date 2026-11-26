@@ -280,10 +280,11 @@ html.dark .mda-previo { background: #1e293b; border-color: #1e3a5f; }
       </div>
 
       <div class="mda-field" id="bloqueContacto">
-        <label for="emailContacto">Correo de contacto</label>
-        <input type="email" id="emailContacto" autocomplete="off" placeholder="Opcional">
-        <label class="mda-check" style="margin-top:10px"><input type="checkbox" id="guardarContacto"> Guardar estos datos como contacto del PDV</label>
-        <div class="mda-hint">Si cargás un correo, el ticket queda a nombre de esa persona y las respuestas por mail le llegan a ella. Tildando la casilla, los datos quedan en la ficha del PDV para la próxima vez.</div>
+        <label for="emailContacto">Correo de contacto <span class="req">*</span></label>
+        <input type="email" id="emailContacto" autocomplete="off" placeholder="nombre@dominio.com">
+        <label class="mda-check" style="margin-top:10px"><input type="checkbox" id="sinCorreo"> El cliente no tiene correo</label>
+        <label class="mda-check" style="margin-top:6px"><input type="checkbox" id="guardarContacto"> Guardar estos datos como contacto del PDV</label>
+        <div class="mda-hint">El ticket queda a nombre de esa persona y las respuestas por mail le llegan a ella. Viene precargado con el correo del PDV: confirmalo o corregilo. Si el cliente no tiene correo, tildá la casilla y el ticket queda a nombre del PDV. Tildando la última casilla, los datos quedan en la ficha del PDV para la próxima vez.</div>
       </div>
 
       <div class="mda-field">
@@ -694,8 +695,11 @@ function elegir(o) {
   const primero = (...v) => v.find(x => valorLegible(x)) || '';
   if (!$('personaContacto').value) $('personaContacto').value = primero(o.contacto_mesa, o.ultimo_contacto, o.contacto);
   if (!$('numeroContacto').value)  $('numeroContacto').value  = primero(o.telefono_mesa, o.ultimo_numero, o.telefono);
-  if (!$('emailContacto').value)   $('emailContacto').value   = primero(o.email_mesa);
+  // El correo del padron solo si es del cliente: no los internos de SEAC/ReSimple.
+  const correoPadron = /@(seac\.com\.ar|resimple\.com\.ar|pdv\.seac\.local)$/i.test(String(o.email_pdv || '').trim()) ? '' : o.email_pdv;
+  if (!$('emailContacto').value)   $('emailContacto').value   = primero(o.email_mesa, correoPadron);
   $('guardarContacto').checked = false;
+  $('sinCorreo').checked = false; $('emailContacto').disabled = false;
   $('bloqueContacto').hidden = !pdvIdentificado(o);
 
   autoTitulo();
@@ -835,6 +839,10 @@ $('respuesta').addEventListener('change', () => {
   $(id).addEventListener('input', validar));
 $('emailContacto').addEventListener('input', validar);
 $('guardarContacto').addEventListener('change', validar);
+$('sinCorreo').addEventListener('change', () => {
+  $('emailContacto').disabled = $('sinCorreo').checked;
+  validar();
+});
 
 function faltantes() {
   const f = [];
@@ -847,7 +855,11 @@ function faltantes() {
   if (!$('titulo').value.trim())     f.push('el título');
   if (causaObligatoria() && !$('causa').value) f.push('la causa');
   if (causaObligatoria() && !$('respuesta').value) f.push('la respuesta aplicada');
-  if ($('emailContacto').value.trim() && !correoValido($('emailContacto').value.trim()))
+  // Correo obligatorio en PDV identificados, salvo que el cliente no tenga (queda a nombre del PDV).
+  const conCorreo = !$('sinCorreo').checked;
+  if (pdv && pdvIdentificado(pdv) && conCorreo && !$('emailContacto').value.trim())
+    f.push('el correo de contacto (o tildá "no tiene correo")');
+  if (conCorreo && $('emailContacto').value.trim() && !correoValido($('emailContacto').value.trim()))
     f.push('un correo de contacto válido');
   return f;
 }
@@ -888,7 +900,7 @@ async function guardarContacto(datos) {
   }
 }
 
-// Busca o crea en Zammad el cliente con ese correo y le asocia el PDV.
+// Busca o crea en Zammad el cliente con ese correo. El PDV va en el ticket, no en el contacto.
 async function resolverCliente(datos) {
   try {
     const r = await fetch(CONFIG.BASE + '/' + CONFIG.CLIENTE, {
@@ -916,7 +928,7 @@ async function crear() {
   // va y vuelve). Si no se puede resolver, queda el usuario del PDV.
   let clienteId = pdv.customer_id ?? null;
   let avisoCliente = '';
-  const correo = $('emailContacto').value.trim();
+  const correo = $('sinCorreo').checked ? '' : $('emailContacto').value.trim();
   if (correo && pdvIdentificado(pdv)) {
     const rc = await resolverCliente({
       organization_id: pdv.organization_id,
@@ -967,7 +979,7 @@ async function crear() {
         organization_id: pdv.organization_id,
         contacto: cuerpo.persona_contacto,
         telefono: cuerpo.numero_contacto,
-        email:    $('emailContacto').value.trim(),
+        email:    $('sinCorreo').checked ? '' : $('emailContacto').value.trim(),
         agente:   cuerpo.agente,
       });
     }
@@ -990,6 +1002,7 @@ function limpiarFormulario() {
   $('pdvElegido').innerHTML = '';
   ['q','errorProblema','personaContacto','numeroContacto','emailContacto','titulo','relato'].forEach(id => $(id).value = '');
   $('guardarContacto').checked = false;
+  $('sinCorreo').checked = false; $('emailContacto').disabled = false;
   $('bloqueContacto').hidden = false;
   ['grupo','producto','solucion','causa','respuesta','motivoCat'].forEach(id => $(id).selectedIndex = 0);
   $('causaReq').hidden = true;
